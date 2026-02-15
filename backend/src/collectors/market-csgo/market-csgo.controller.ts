@@ -20,7 +20,9 @@ export class MarketCsgoController {
   @Post('sync/trades')
   async syncTrades() {
     const count = await this.marketCsgoService.syncTrades();
-    return { message: `Synced ${count} trades` };
+    // Also trigger float update for missing items
+    const updatedFloats = await this.marketCsgoService.updateMissingFloats();
+    return { message: `Synced ${count} trades, updated ${updatedFloats} floats` };
   }
 
   @Post('sync/rate')

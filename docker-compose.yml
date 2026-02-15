@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   mysql:
@@ -8,8 +7,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: cs2_analytics
-    ports:
-      - '3306:3306'
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password
@@ -18,8 +15,6 @@ services:
     image: redis:7-alpine
     container_name: cs2_redis
     restart: unless-stopped
-    ports:
-      - '6379:6379'
     volumes:
       - redis_data:/data
 

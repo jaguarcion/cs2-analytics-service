@@ -133,31 +133,64 @@ export class MarketCsgoService {
     }
   }
 
-  async fetchFloatFromInspect(assetId: string, classId: string, instanceId: string): Promise<number | null> {
+  private buildInspectUrl(classId: string, assetId: string, instanceId?: string) {
+    return `steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20M${classId}A${assetId}D${instanceId || '0'}`;
+  }
+
+  private async fetchFloatFromCsfloat(inspectUrl: string, assetId: string): Promise<number | null> {
+    const apiKey = this.config.get('CSFLOAT_API_KEY');
+    if (!apiKey) {
+      return null; // no Pro key — skip call entirely
+    }
     try {
-      // Build Steam inspect link
-      // Format: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20M{classId}A{assetId}D{instanceId}
-      const inspectUrl = `steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20M${classId}A${assetId}D${instanceId || '0'}`;
-
-      // Use CSFloat inspect API to get float
-      const response = await axios.get(
-        `https://csfloat.com/api/v1/inspect`,
-        {
-          params: { url: inspectUrl },
-          timeout: 10000,
-        },
-      );
-
+      const response = await axios.get(`https://csfloat.com/api/v1/inspect`, {
+        params: { url: inspectUrl },
+        timeout: 10000,
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
       const float = response.data?.iteminfo?.floatvalue;
       if (float !== undefined && float !== null) {
-        this.logger.debug(`Got float ${float} for asset ${assetId}`);
+        this.logger.debug(`Got float ${float} for asset ${assetId} via CSFloat`);
         return parseFloat(float);
       }
-      return null;
     } catch (error) {
-      this.logger.warn(`Failed to fetch float for asset ${assetId}: ${error.message}`);
+      this.logger.warn(`CSFloat inspect failed for asset ${assetId}: ${error.message}`);
+    }
+    return null;
+  }
+
+  private async fetchFloatFromCsgofloat(inspectUrl: string, assetId: string): Promise<number | null> {
+    try {
+      const response = await axios.get('https://api.csgofloat.com/', {
+        params: { url: inspectUrl },
+        timeout: 10000,
+      });
+      const float = response.data?.iteminfo?.floatvalue;
+      if (float !== undefined && float !== null) {
+        this.logger.debug(`Got float ${float} for asset ${assetId} via csgofloat`);
+        return parseFloat(float);
+      }
+    } catch (error) {
+      this.logger.warn(`csgofloat inspect failed for asset ${assetId}: ${error.message}`);
+    }
+    return null;
+  }
+
+  private async fetchFloatForTrade(trade: MarketTrade): Promise<number | null> {
+    if (!trade.asset_id || !trade.class_id) {
       return null;
     }
+    const inspectUrl = this.buildInspectUrl(trade.class_id, trade.asset_id, trade.instance_id || undefined);
+
+    // Try CSFloat Pro inspect first (if key available)
+    let floatValue = await this.fetchFloatFromCsfloat(inspectUrl, trade.asset_id);
+
+    // Fallback to csgofloat public API
+    if (floatValue === null) {
+      floatValue = await this.fetchFloatFromCsgofloat(inspectUrl, trade.asset_id);
+    }
+
+    return floatValue;
   }
 
   async fetchWithdrawRate(): Promise<WithdrawRate | null> {
@@ -230,14 +263,10 @@ export class MarketCsgoService {
 
         const wear = parseWearFromName(trade.market_hash_name);
 
-        // Try to fetch float from inspect API if not provided by Market.CSGO
+        // Try to fetch float via inspect APIs if not provided by Market.CSGO
         let floatValue = trade.float || null;
-        if (!floatValue && trade.asset_id && trade.class_id) {
-          const fetchedFloat = await this.fetchFloatFromInspect(
-            trade.asset_id,
-            trade.class_id,
-            trade.instance_id || '0',
-          );
+        if (!floatValue) {
+          const fetchedFloat = await this.fetchFloatForTrade(trade);
           if (fetchedFloat !== null) {
             floatValue = fetchedFloat;
           }

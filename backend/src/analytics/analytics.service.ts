@@ -132,7 +132,7 @@ export class AnalyticsService {
     };
   }
 
-  async getPurchases(filter: PeriodFilter) {
+  async getPurchases(filter: PeriodFilter & { hidden?: boolean }) {
     const platformFilter =
       filter.platform && filter.platform !== 'ALL'
         ? { platformSource: filter.platform as any }
@@ -141,6 +141,7 @@ export class AnalyticsService {
     return this.prisma.trade.findMany({
       where: {
         type: 'BUY',
+        hidden: filter.hidden ?? false,
         tradedAt: { gte: filter.from, lte: filter.to },
         ...platformFilter,
       },
@@ -149,7 +150,7 @@ export class AnalyticsService {
     });
   }
 
-  async getSales(filter: PeriodFilter) {
+  async getSales(filter: PeriodFilter & { hidden?: boolean }) {
     const platformFilter =
       filter.platform && filter.platform !== 'ALL'
         ? { platformSource: filter.platform as any }
@@ -158,6 +159,7 @@ export class AnalyticsService {
     return this.prisma.trade.findMany({
       where: {
         type: 'SELL',
+        hidden: filter.hidden ?? false,
         tradedAt: { gte: filter.from, lte: filter.to },
         ...platformFilter,
       },

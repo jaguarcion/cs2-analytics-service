@@ -1,11 +1,15 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Param, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('analytics')
 @UseGuards(AuthGuard)
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get('summary')
   async getSummary(
@@ -32,6 +36,7 @@ export class AnalyticsController {
   async getPurchases(
     @Query('period') period: string = 'month',
     @Query('platform') platform: string = 'ALL',
+    @Query('hidden') hidden: string = 'false',
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
@@ -46,6 +51,7 @@ export class AnalyticsController {
     return this.analyticsService.getPurchases({
       ...dates,
       platform: platform as any,
+      hidden: hidden === 'true',
     });
   }
 
@@ -53,6 +59,7 @@ export class AnalyticsController {
   async getSales(
     @Query('period') period: string = 'month',
     @Query('platform') platform: string = 'ALL',
+    @Query('hidden') hidden: string = 'false',
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
@@ -67,6 +74,7 @@ export class AnalyticsController {
     return this.analyticsService.getSales({
       ...dates,
       platform: platform as any,
+      hidden: hidden === 'true',
     });
   }
 
@@ -94,5 +102,18 @@ export class AnalyticsController {
   @Get('sync-status')
   async getSyncStatus() {
     return this.analyticsService.getSyncStatus();
+  }
+
+  @Post('trades/:id/toggle-hide')
+  async toggleHide(@Param('id') id: string) {
+    const trade = await this.prisma.trade.findUnique({ where: { id } });
+    if (!trade) {
+      return { error: 'Trade not found' };
+    }
+    const updated = await this.prisma.trade.update({
+      where: { id },
+      data: { hidden: !trade.hidden },
+    });
+    return { id: updated.id, hidden: updated.hidden };
   }
 }

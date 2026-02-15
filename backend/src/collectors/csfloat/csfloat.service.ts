@@ -142,9 +142,12 @@ export class CsfloatService {
 
         page++;
 
-        // Safety cap
-        if (page > 50) {
-          this.logger.warn('CSFloat trades: reached page cap (50), stopping');
+        // Delay between pages to avoid rate limiting
+        await new Promise((r) => setTimeout(r, 1000));
+
+        // Safety cap — max 15 pages (1500 trades)
+        if (page > 15) {
+          this.logger.warn('CSFloat trades: reached page cap (15), stopping');
           break;
         }
       }

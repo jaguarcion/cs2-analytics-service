@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { EyeOff, Eye } from 'lucide-react';
 import type { TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
@@ -46,10 +47,10 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 
 function showTradeBan(trade: TradeItem): boolean {
   // Show trade ban countdown for:
-  // - TRADE_HOLD status (any platform)
-  // - PENDING sell items (on sale — show ban from purchase date)
+  // - TRADE_HOLD status (item being transferred)
+  // - COMPLETED sells where ban hasn't expired yet (sold date + 7 days)
   if (trade.status === 'TRADE_HOLD') return true;
-  if (trade.status === 'PENDING' && trade.tradedAt) {
+  if (trade.status === 'COMPLETED' && trade.tradedAt) {
     const remaining = getTradeHoldRemaining(trade.tradedAt);
     return remaining !== null && remaining !== 'Истёк';
   }
@@ -60,9 +61,11 @@ interface TradesTableProps {
   trades: TradeItem[];
   type: 'BUY' | 'SELL';
   fxRate?: number | null;
+  onToggleHide?: (tradeId: string) => void;
+  isHiddenView?: boolean;
 }
 
-export default function TradesTable({ trades, type, fxRate }: TradesTableProps) {
+export default function TradesTable({ trades, type, fxRate, onToggleHide, isHiddenView }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +120,8 @@ export default function TradesTable({ trades, type, fxRate }: TradesTableProps) 
             </th>
             <th className="pb-3 pr-4 font-medium">Платформа</th>
             <th className="pb-3 pr-4 font-medium">Статус</th>
-            <th className="pb-3 font-medium">Дата</th>
+            <th className="pb-3 pr-4 font-medium">Дата</th>
+            {onToggleHide && <th className="pb-3 w-10"></th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-dark-800">
@@ -205,9 +209,20 @@ export default function TradesTable({ trades, type, fxRate }: TradesTableProps) 
                     )}
                   </div>
                 </td>
-                <td className="py-3 text-dark-400">
+                <td className="py-3 pr-4 text-dark-400">
                   {formatDate(trade.tradedAt)}
                 </td>
+                {onToggleHide && (
+                  <td className="py-3">
+                    <button
+                      onClick={() => onToggleHide(trade.id)}
+                      className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-dark-300"
+                      title={isHiddenView ? 'Показать' : 'Скрыть'}
+                    >
+                      {isHiddenView ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

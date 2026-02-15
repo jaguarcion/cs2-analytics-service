@@ -21,6 +21,7 @@ import {
   fetchPurchases,
   fetchSales,
   fetchProfit,
+  toggleTradeHidden,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
@@ -31,7 +32,7 @@ import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { isAuthenticated, removeToken } from '@/lib/auth';
 
-type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_buy' | 'market_sell';
+type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_buy' | 'market_sell' | 'hidden';
 
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -57,22 +58,28 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [purchases, setPurchases] = useState<TradeItem[]>([]);
   const [sales, setSales] = useState<TradeItem[]>([]);
   const [profitEntries, setProfitEntries] = useState<ProfitEntry[]>([]);
+  const [hiddenPurchases, setHiddenPurchases] = useState<TradeItem[]>([]);
+  const [hiddenSales, setHiddenSales] = useState<TradeItem[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = { period, platform };
-      const [summaryData, purchasesData, salesData, profitData] =
+      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells] =
         await Promise.all([
           fetchSummary(params),
           fetchPurchases(params),
           fetchSales(params),
           fetchProfit(params),
+          fetchPurchases({ ...params, hidden: true }),
+          fetchSales({ ...params, hidden: true }),
         ]);
       setSummary(summaryData);
       setPurchases(purchasesData);
       setSales(salesData);
       setProfitEntries(profitData);
+      setHiddenPurchases(hiddenBuys);
+      setHiddenSales(hiddenSells);
     } catch (error) {
       console.error('Failed to load analytics data:', error);
     } finally {
@@ -84,16 +91,27 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     loadData();
   }, [loadData]);
 
+  const handleToggleHide = useCallback(async (tradeId: string) => {
+    try {
+      await toggleTradeHidden(tradeId);
+      loadData();
+    } catch (error) {
+      console.error('Failed to toggle hide:', error);
+    }
+  }, [loadData]);
+
   // Filter trades by platform
   const csfloatBuys = purchases.filter((t) => t.platformSource === 'CSFLOAT');
   const csfloatSells = sales.filter((t) => t.platformSource === 'CSFLOAT');
   const marketSells = sales.filter((t) => t.platformSource === 'MARKET_CSGO');
+  const hiddenAll = [...hiddenPurchases, ...hiddenSales];
 
   const tabs: { value: Tab; label: string; count: number }[] = [
     { value: 'overview', label: 'Общая стата', count: profitEntries.length },
     { value: 'csfloat_buy', label: 'CSFloat — Покупки', count: csfloatBuys.length },
     { value: 'csfloat_sell', label: 'CSFloat — Продажи', count: csfloatSells.length },
     { value: 'market_sell', label: 'Market.CSGO — Продажи', count: marketSells.length },
+    { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
   ];
 
   return (
@@ -240,7 +258,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Покупки — CSFloat
                   </h2>
-                  <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} />
+                  <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} />
                 </div>
               )}
               {tab === 'csfloat_sell' && (
@@ -248,7 +266,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — CSFloat
                   </h2>
-                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} />
+                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} />
                 </div>
               )}
               {tab === 'market_sell' && (
@@ -256,7 +274,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — Market.CSGO
                   </h2>
-                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} />
+                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} />
+                </div>
+              )}
+              {tab === 'hidden' && (
+                <div>
+                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
+                    Скрытые предметы
+                  </h2>
+                  <TradesTable trades={hiddenAll} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} isHiddenView />
                 </div>
               )}
             </>

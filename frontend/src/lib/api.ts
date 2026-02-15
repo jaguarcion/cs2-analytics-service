@@ -98,13 +98,22 @@ export async function fetchSummary(params: QueryParams): Promise<AnalyticsSummar
   return data;
 }
 
-export async function fetchPurchases(params: QueryParams): Promise<TradeItem[]> {
-  const { data } = await api.get('/analytics/purchases', { params });
+export async function fetchPurchases(params: QueryParams & { hidden?: boolean }): Promise<TradeItem[]> {
+  const { data } = await api.get('/analytics/purchases', {
+    params: { ...params, hidden: params.hidden ? 'true' : 'false' },
+  });
   return data;
 }
 
-export async function fetchSales(params: QueryParams): Promise<TradeItem[]> {
-  const { data } = await api.get('/analytics/sales', { params });
+export async function fetchSales(params: QueryParams & { hidden?: boolean }): Promise<TradeItem[]> {
+  const { data } = await api.get('/analytics/sales', {
+    params: { ...params, hidden: params.hidden ? 'true' : 'false' },
+  });
+  return data;
+}
+
+export async function toggleTradeHidden(tradeId: string): Promise<{ id: string; hidden: boolean }> {
+  const { data } = await api.post(`/analytics/trades/${tradeId}/toggle-hide`);
   return data;
 }
 

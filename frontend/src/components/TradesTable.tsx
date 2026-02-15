@@ -214,7 +214,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
             <ChevronDown className="h-3.5 w-3.5 text-dark-500" />
           </button>
           {typeDropdownOpen && (
-            <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-dark-700 bg-dark-850 shadow-xl">
+            <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-dark-700 bg-dark-900 shadow-xl">
               <button
                 onClick={() => { setItemTypeFilter('all'); setTypeDropdownOpen(false); }}
                 className={`flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-dark-700/50 ${

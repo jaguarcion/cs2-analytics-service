@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Query, Param, Body, UseGuards } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { lastValueFrom } from 'rxjs';
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -12,6 +13,7 @@ export class AnalyticsController {
     private readonly analyticsService: AnalyticsService,
     private readonly prisma: PrismaService,
     private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Get('summary')
@@ -144,7 +146,8 @@ export class AnalyticsController {
       marketRate: 0,
     };
 
-    const baseUrl = 'http://localhost:3000/api';
+    const baseUrl =
+      this.configService.get<string>('INTERNAL_API_URL') || 'http://localhost:4001/api';
 
     try {
       const csfloatStallRes = await lastValueFrom(

@@ -306,18 +306,36 @@ export class MarketCsgoService {
         ...(historyItems.status === 'fulfilled' ? historyItems.value : []),
       ];
 
-      // Deduplicate by id — prefer history (sold) over active
+      // Deduplicate by id — prefer history (sold) over active, but keep IDs if missing in history
       const tradeMap = new Map<string, MarketTrade>();
       for (const t of trades) {
         const existing = tradeMap.get(t.id);
-        if (!existing || t._source === 'history') {
+        if (!existing) {
           tradeMap.set(t.id, t);
+        } else {
+          // If we are replacing an existing item with a history item, 
+          // ensure we don't lose the IDs if the history item lacks them
+          if (t._source === 'history') {
+             if (!t.asset_id && existing.asset_id) t.asset_id = existing.asset_id;
+             if (!t.class_id && existing.class_id) t.class_id = existing.class_id;
+             if (!t.instance_id && existing.instance_id) t.instance_id = existing.instance_id;
+             // Use the history item (with merged IDs)
+             tradeMap.set(t.id, t);
+          }
+          // If existing is history, we generally keep it as it's more final, 
+          // unless we want to update some metadata from active? 
+          // Usually history is the source of truth for "sold" status.
         }
       }
       const uniqueTrades = Array.from(tradeMap.values());
 
       for (const trade of uniqueTrades) {
         if (!trade.market_hash_name) continue;
+
+        // Warn if IDs are missing
+        if (!trade.class_id || !trade.asset_id) {
+           this.logger.debug(`Item ${trade.id} (${trade.market_hash_name}) missing class_id/asset_id. Source: ${trade._source}, Status: ${trade.status}`);
+        }
 
         // Build image URL from market_hash_name via Steam Community
         const imageUrl = `https://steamcommunity.com/economy/image/class/730/${trade.class_id || '0'}/${trade.instance_id || '0'}`;

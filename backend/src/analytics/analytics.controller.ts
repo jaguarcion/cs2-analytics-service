@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Param, Body, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -136,5 +136,18 @@ export class AnalyticsController {
       data: { hidden: !trade.hidden },
     });
     return { id: updated.id, hidden: updated.hidden };
+  }
+
+  @Post('trades/bulk-hide')
+  async bulkHide(@Body() body: { ids: string[]; hidden: boolean }) {
+    const { ids, hidden } = body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return { error: 'No trade IDs provided' };
+    }
+    const result = await this.prisma.trade.updateMany({
+      where: { id: { in: ids } },
+      data: { hidden },
+    });
+    return { updated: result.count, hidden };
   }
 }

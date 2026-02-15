@@ -24,6 +24,7 @@ import {
   fetchSales,
   fetchProfit,
   toggleTradeHidden,
+  bulkSetHidden,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
@@ -100,6 +101,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       loadData();
     } catch (error) {
       console.error('Failed to toggle hide:', error);
+    }
+  }, [loadData]);
+
+  const handleBulkHide = useCallback(async (ids: string[], hidden: boolean) => {
+    try {
+      await bulkSetHidden(ids, hidden);
+      loadData();
+    } catch (error) {
+      console.error('Failed to bulk hide:', error);
     }
   }, [loadData]);
 
@@ -268,7 +278,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Покупки — CSFloat
                   </h2>
-                  <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} />
+                  <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
               {tab === 'csfloat_sell' && (
@@ -276,7 +286,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — CSFloat
                   </h2>
-                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} />
+                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
               {tab === 'market_sell' && (
@@ -284,7 +294,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — Market.CSGO
                   </h2>
-                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} />
+                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
               {tab === 'hidden' && (
@@ -292,7 +302,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Скрытые предметы
                   </h2>
-                  <TradesTable trades={hiddenAll} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} isHiddenView />
+                  <TradesTable trades={hiddenAll} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} isHiddenView />
                 </div>
               )}
             </>

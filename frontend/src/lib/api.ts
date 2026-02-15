@@ -117,6 +117,11 @@ export async function toggleTradeHidden(tradeId: string): Promise<{ id: string; 
   return data;
 }
 
+export async function bulkSetHidden(ids: string[], hidden: boolean): Promise<{ updated: number; hidden: boolean }> {
+  const { data } = await api.post('/analytics/trades/bulk-hide', { ids, hidden });
+  return data;
+}
+
 export interface DashboardStats {
   onSaleCount: number;
   purchasesCount: number;

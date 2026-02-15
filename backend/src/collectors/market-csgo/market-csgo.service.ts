@@ -28,6 +28,23 @@ export interface WithdrawRate {
   currency_to: string;
 }
 
+const WEAR_NAMES: Record<string, string> = {
+  'Factory New': 'Factory New',
+  'Minimal Wear': 'Minimal Wear',
+  'Field-Tested': 'Field-Tested',
+  'Well-Worn': 'Well-Worn',
+  'Battle-Scarred': 'Battle-Scarred',
+};
+
+function parseWearFromName(name: string): string | null {
+  const match = name.match(/\(([^)]+)\)\s*$/);
+  if (match) {
+    const inner = match[1];
+    if (WEAR_NAMES[inner]) return WEAR_NAMES[inner];
+  }
+  return null;
+}
+
 @Injectable()
 export class MarketCsgoService {
   private readonly logger = new Logger(MarketCsgoService.name);
@@ -184,6 +201,8 @@ export class MarketCsgoService {
         // Build image URL from market_hash_name via Steam Community
         const imageUrl = `https://steamcommunity.com/economy/image/class/730/${trade.class_id || '0'}/${trade.instance_id || '0'}`;
 
+        const wear = parseWearFromName(trade.market_hash_name);
+
         const item = await this.prisma.item.upsert({
           where: {
             platformSource_externalId: {
@@ -193,6 +212,7 @@ export class MarketCsgoService {
           },
           update: {
             name: trade.market_hash_name,
+            wear,
             floatValue: trade.float || null,
             imageUrl: trade.class_id ? imageUrl : null,
           },
@@ -200,6 +220,7 @@ export class MarketCsgoService {
             externalId: trade.id,
             platformSource: 'MARKET_CSGO',
             name: trade.market_hash_name,
+            wear,
             floatValue: trade.float || null,
             imageUrl: trade.class_id ? imageUrl : null,
           },

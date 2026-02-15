@@ -25,12 +25,12 @@ services:
     container_name: cs2_backend
     restart: unless-stopped
     ports:
-      - '3001:3001'
+      - '4001:4001'
     environment:
       DATABASE_URL: mysql://root:root@mysql:3306/cs2_analytics
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      BACKEND_PORT: 3001
+      BACKEND_PORT: 4001
       CSFLOAT_API_KEY: ${CSFLOAT_API_KEY}
       CSFLOAT_BASE_URL: ${CSFLOAT_BASE_URL:-https://csfloat.com/api/v1}
       CSFLOAT_STEAM_ID: ${CSFLOAT_STEAM_ID}
@@ -47,7 +47,7 @@ services:
     container_name: cs2_frontend
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '4000:3000'
     depends_on:
       - backend
 

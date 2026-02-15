@@ -7,7 +7,7 @@ RUN npm ci
 
 COPY . .
 
-ARG BACKEND_URL=http://backend:3001
+ARG BACKEND_URL=http://backend:4001
 ENV BACKEND_URL=${BACKEND_URL}
 
 RUN npm run build
@@ -17,7 +17,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV BACKEND_URL=http://backend:3001
+ENV BACKEND_URL=http://backend:4001
 
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules

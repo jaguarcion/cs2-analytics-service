@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: cs2_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cs2_analytics
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:7-alpine
+    container_name: cs2_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cs2_backend
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_URL: mysql://root:root@mysql:3306/cs2_analytics
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BACKEND_PORT: 3001
+      CSFLOAT_API_KEY: ${CSFLOAT_API_KEY}
+      CSFLOAT_BASE_URL: ${CSFLOAT_BASE_URL:-https://csfloat.com/api/v1}
+      CSFLOAT_STEAM_ID: ${CSFLOAT_STEAM_ID}
+      MARKET_CSGO_API_KEY: ${MARKET_CSGO_API_KEY}
+      MARKET_CSGO_BASE_URL: ${MARKET_CSGO_BASE_URL:-https://market.csgo.com}
+    depends_on:
+      - mysql
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cs2_frontend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  redis_data:

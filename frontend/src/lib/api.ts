@@ -1,0 +1,110 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 15000,
+});
+
+export interface AnalyticsSummary {
+  inventoryValue: number;
+  inventoryCount: number;
+  totalPurchases: number;
+  purchasesCount: number;
+  totalSales: number;
+  salesCount: number;
+  totalProfit: number;
+  profitPercent: number;
+  fxRate: { pair: string; rate: number; fetchedAt: string } | null;
+}
+
+export interface TradeItem {
+  id: string;
+  externalId: string;
+  platformSource: string;
+  buyPrice: number | null;
+  sellPrice: number | null;
+  commission: number | null;
+  type: string;
+  status: string;
+  tradedAt: string;
+  item?: {
+    id: string;
+    name: string;
+    wear: string | null;
+    floatValue: number | null;
+    imageUrl: string | null;
+  };
+}
+
+export interface ProfitEntry {
+  itemName: string;
+  imageUrl: string | null;
+  buyPrice: number;
+  sellPrice: number;
+  commission: number;
+  netSell: number;
+  profit: number;
+  profitPercent: number;
+  buyPlatform: string;
+  sellPlatform: string;
+  buyDate: string | null;
+  sellDate: string | null;
+}
+
+export interface SyncLog {
+  id: string;
+  source: string;
+  status: string;
+  itemsProcessed: number;
+  errorMessage: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export type Period = 'week' | 'month' | '3months' | 'custom';
+export type Platform = 'ALL' | 'CSFLOAT' | 'MARKET_CSGO';
+
+interface QueryParams {
+  period?: string;
+  platform?: string;
+  from?: string;
+  to?: string;
+}
+
+export async function fetchSummary(params: QueryParams): Promise<AnalyticsSummary> {
+  const { data } = await api.get('/analytics/summary', { params });
+  return data;
+}
+
+export async function fetchPurchases(params: QueryParams): Promise<TradeItem[]> {
+  const { data } = await api.get('/analytics/purchases', { params });
+  return data;
+}
+
+export async function fetchSales(params: QueryParams): Promise<TradeItem[]> {
+  const { data } = await api.get('/analytics/sales', { params });
+  return data;
+}
+
+export async function fetchProfit(params: QueryParams): Promise<ProfitEntry[]> {
+  const { data } = await api.get('/analytics/profit', { params });
+  return data;
+}
+
+export async function fetchSyncStatus(): Promise<SyncLog[]> {
+  const { data } = await api.get('/analytics/sync-status');
+  return data;
+}
+
+export async function triggerSync(source: string): Promise<{ message: string }> {
+  const endpoints: Record<string, string> = {
+    csfloat_stall: '/csfloat/sync/stall',
+    csfloat_trades: '/csfloat/sync/trades',
+    market_trades: '/market-csgo/sync/trades',
+    market_rate: '/market-csgo/sync/rate',
+  };
+  const { data } = await api.post(endpoints[source] || '');
+  return data;
+}
+
+export default api;

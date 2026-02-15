@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlatformSource {
+  CSFLOAT
+  MARKET_CSGO
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
+  DELISTED
+}
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  COMPLETED
+  TRADE_HOLD
+}
+
+model Item {
+  id              String         @id @default(uuid()) @db.VarChar(36)
+  externalId      String?        @map("external_id") @db.VarChar(255)
+  platformSource  PlatformSource @map("platform_source")
+  name            String         @db.VarChar(512)
+  wear            String?        @db.VarChar(64)
+  floatValue      Float?         @map("float_value")
+  assetId         String?        @map("asset_id") @db.VarChar(255)
+  imageUrl        String?        @map("image_url") @db.Text
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  listings        Listing[]
+  trades          Trade[]
+
+  @@unique([platformSource, externalId])
+  @@index([assetId])
+  @@index([name(length: 255), floatValue])
+  @@map("items")
+}
+
+model Listing {
+  id              String        @id @default(uuid()) @db.VarChar(36)
+  externalId      String?       @map("external_id") @db.VarChar(255)
+  itemId          String        @map("item_id") @db.VarChar(36)
+  platformSource  PlatformSource @map("platform_source")
+  price           Float
+  currency        String        @default("USD") @db.VarChar(10)
+  status          ListingStatus @default(ACTIVE)
+  listedAt        DateTime?     @map("listed_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  item            Item          @relation(fields: [itemId], references: [id])
+
+  @@unique([platformSource, externalId])
+  @@map("listings")
+}
+
+model Trade {
+  id              String         @id @default(uuid()) @db.VarChar(36)
+  externalId      String?        @map("external_id") @db.VarChar(255)
+  platformSource  PlatformSource @map("platform_source")
+  itemId          String         @map("item_id") @db.VarChar(36)
+  buyPrice        Float?         @map("buy_price")
+  sellPrice       Float?         @map("sell_price")
+  commission      Float?         @default(0)
+  status          TradeStatus    @default(PENDING)
+  type            String         @db.VarChar(10) // "BUY" or "SELL"
+  tradedAt        DateTime?      @map("traded_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  item            Item           @relation(fields: [itemId], references: [id])
+
+  @@unique([platformSource, externalId])
+  @@map("trades")
+}
+
+model FxRate {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  pair            String   @db.VarChar(20) // e.g. "USDT_RUB"
+  rate            Float
+  source          String   @default("market_csgo") @db.VarChar(50)
+  fetchedAt       DateTime @map("fetched_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([pair, fetchedAt])
+  @@map("fx_rates")
+}
+
+model SyncLog {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  source          String   @db.VarChar(50) // "csfloat_stall", "csfloat_trades", "market_trades", "market_rate"
+  status          String   @db.VarChar(20) // "success", "error"
+  itemsProcessed  Int      @default(0) @map("items_processed")
+  errorMessage    String?  @map("error_message") @db.Text
+  startedAt       DateTime @map("started_at")
+  finishedAt      DateTime? @map("finished_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("sync_logs")
+}

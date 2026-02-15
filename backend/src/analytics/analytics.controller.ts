@@ -2,6 +2,8 @@ import { Controller, Get, Post, Query, Param, Body, UseGuards } from '@nestjs/co
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { CsfloatService } from '../collectors/csfloat/csfloat.service';
+import { MarketCsgoService } from '../collectors/market-csgo/market-csgo.service';
 
 @Controller('analytics')
 @UseGuards(AuthGuard)
@@ -9,6 +11,8 @@ export class AnalyticsController {
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly prisma: PrismaService,
+    private readonly csfloatService: CsfloatService,
+    private readonly marketCsgoService: MarketCsgoService,
   ) {}
 
   @Get('summary')
@@ -130,6 +134,45 @@ export class AnalyticsController {
   @Get('sync-status')
   async getSyncStatus() {
     return this.analyticsService.getSyncStatus();
+  }
+
+  @Post('sync/all')
+  async syncAll() {
+    const results = {
+      csfloatStall: 0,
+      csfloatTrades: 0,
+      marketTrades: 0,
+      marketRate: 0,
+    };
+
+    try {
+      results.csfloatStall = await this.csfloatService.syncStall();
+    } catch (e) {
+      this.analyticsService['logger']?.warn?.(`CSFloat stall sync failed: ${e.message}`);
+    }
+
+    try {
+      results.csfloatTrades = await this.csfloatService.syncTrades();
+    } catch (e) {
+      this.analyticsService['logger']?.warn?.(`CSFloat trades sync failed: ${e.message}`);
+    }
+
+    try {
+      results.marketTrades = await this.marketCsgoService.syncTrades();
+    } catch (e) {
+      this.analyticsService['logger']?.warn?.(`Market.CSGO trades sync failed: ${e.message}`);
+    }
+
+    try {
+      results.marketRate = await this.marketCsgoService.syncWithdrawRate();
+    } catch (e) {
+      this.analyticsService['logger']?.warn?.(`Market.CSGO rate sync failed: ${e.message}`);
+    }
+
+    return {
+      message: 'Full sync completed',
+      results,
+    };
   }
 
   @Post('trades/:id/toggle-hide')

@@ -155,6 +155,11 @@ export async function fetchSyncStatus(): Promise<SyncLog[]> {
   return data;
 }
 
+export async function triggerFullSync(): Promise<{ message: string; results: { csfloatStall: number; csfloatTrades: number; marketTrades: number; marketRate: number } }> {
+  const { data } = await api.post('/analytics/sync/all');
+  return data;
+}
+
 export async function triggerSync(source: string): Promise<{ message: string }> {
   const endpoints: Record<string, string> = {
     csfloat_stall: '/csfloat/sync/stall',

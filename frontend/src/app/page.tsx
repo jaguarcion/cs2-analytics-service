@@ -26,6 +26,7 @@ import {
   toggleTradeHidden,
   bulkSetHidden,
   fetchInventory,
+  triggerFullSync,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
@@ -67,6 +68,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [hiddenSales, setHiddenSales] = useState<TradeItem[]>([]);
   const [inventory, setInventory] = useState<TradeItem[]>([]);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -94,6 +97,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       setLoading(false);
     }
   }, [period, platform]);
+
+  const handleFullSync = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await triggerFullSync();
+      // Reload data after sync completes
+      await loadData();
+    } catch (error) {
+      console.error('Failed to sync:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
@@ -155,12 +171,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <PlatformSelector value={platform} onChange={setPlatform} />
               <PeriodSelector value={period} onChange={setPeriod} />
               <button
-                onClick={loadData}
-                disabled={loading}
+                onClick={handleFullSync}
+                disabled={loading || isSyncing}
                 className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-dark-200 disabled:opacity-50"
               >
                 <RefreshCw
-                  className={cn('h-4 w-4', loading && 'animate-spin')}
+                  className={cn('h-4 w-4', (loading || isSyncing) && 'animate-spin')}
                 />
               </button>
               <button

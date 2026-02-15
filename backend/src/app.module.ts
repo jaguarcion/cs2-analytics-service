@@ -9,6 +9,7 @@ import { NormalizerModule } from './normalizer/normalizer.module';
 import { MatcherModule } from './matcher/matcher.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SyncModule } from './sync/sync.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SyncModule } from './sync/sync.module';
       inject: [ConfigService],
     }),
     PrismaModule,
+    AuthModule,
     CsfloatModule,
     MarketCsgoModule,
     NormalizerModule,

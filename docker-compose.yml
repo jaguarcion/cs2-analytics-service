@@ -36,6 +36,7 @@ services:
       CSFLOAT_STEAM_ID: ${CSFLOAT_STEAM_ID}
       MARKET_CSGO_API_KEY: ${MARKET_CSGO_API_KEY}
       MARKET_CSGO_BASE_URL: ${MARKET_CSGO_BASE_URL:-https://market.csgo.com}
+      AUTH_TOKEN: ${AUTH_TOKEN}
     depends_on:
       - mysql
       - redis

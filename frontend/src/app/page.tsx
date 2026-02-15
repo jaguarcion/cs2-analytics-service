@@ -8,12 +8,14 @@ import {
   TrendingUp,
   ArrowDownUp,
   RefreshCw,
+  LogOut,
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import PeriodSelector from '@/components/PeriodSelector';
 import PlatformSelector from '@/components/PlatformSelector';
 import TradesTable from '@/components/TradesTable';
 import ProfitTable from '@/components/ProfitTable';
+import LoginForm from '@/components/LoginForm';
 import {
   fetchSummary,
   fetchPurchases,
@@ -27,10 +29,25 @@ import {
 } from '@/lib/api';
 import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { isAuthenticated, removeToken } from '@/lib/auth';
 
 type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_buy' | 'market_sell';
 
 export default function DashboardPage() {
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    setAuthed(isAuthenticated());
+  }, []);
+
+  if (!authed) {
+    return <LoginForm onSuccess={() => setAuthed(true)} />;
+  }
+
+  return <Dashboard onLogout={() => { removeToken(); setAuthed(false); }} />;
+}
+
+function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [period, setPeriod] = useState<Period>('month');
   const [platform, setPlatform] = useState<Platform>('ALL');
   const [tab, setTab] = useState<Tab>('overview');
@@ -109,6 +126,13 @@ export default function DashboardPage() {
                 <RefreshCw
                   className={cn('h-4 w-4', loading && 'animate-spin')}
                 />
+              </button>
+              <button
+                onClick={onLogout}
+                className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-red"
+                title="Выйти"
+              >
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>

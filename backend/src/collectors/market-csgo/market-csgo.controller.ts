@@ -1,7 +1,9 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { MarketCsgoService } from './market-csgo.service';
+import { AuthGuard } from '../../auth/auth.guard';
 
 @Controller('market-csgo')
+@UseGuards(AuthGuard)
 export class MarketCsgoController {
   constructor(private readonly marketCsgoService: MarketCsgoService) {}
 

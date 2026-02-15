@@ -1,7 +1,9 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { CsfloatService } from './csfloat.service';
+import { AuthGuard } from '../../auth/auth.guard';
 
 @Controller('csfloat')
+@UseGuards(AuthGuard)
 export class CsfloatController {
   constructor(private readonly csfloatService: CsfloatService) {}
 

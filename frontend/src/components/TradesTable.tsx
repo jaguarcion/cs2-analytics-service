@@ -37,12 +37,19 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 
   switch (status) {
     case 'COMPLETED': return type === 'SELL' ? 'Продано' : 'Куплено';
-    case 'TRADE_HOLD': return 'Трейд-бан';
+    case 'TRADE_HOLD': return type === 'SELL' ? 'В продаже' : 'Куплено';
     case 'ACCEPTED': return 'В процессе';
     case 'PENDING': return type === 'SELL' ? 'В продаже' : 'Ожидание';
     case 'CANCELLED': return 'Отменён';
     default: return status;
   }
+}
+
+function getTradeBanRemainingMs(trade: TradeItem): number {
+  if (!trade.tradedAt) return 0;
+  const banEnd = new Date(trade.tradedAt).getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000;
+  const diff = banEnd - Date.now();
+  return diff > 0 ? diff : 0;
 }
 
 function showTradeBan(trade: TradeItem): boolean {
@@ -76,7 +83,7 @@ interface TradesTableProps {
   isHiddenView?: boolean;
 }
 
-type SortKey = 'name' | 'wear' | 'float' | 'price' | 'platform' | 'status' | 'date';
+type SortKey = 'name' | 'wear' | 'float' | 'price' | 'platform' | 'status' | 'tradeban' | 'date';
 type SortDir = 'asc' | 'desc';
 
 export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView }: TradesTableProps) {
@@ -155,6 +162,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
           }
           case 'platform': cmp = a.platformSource.localeCompare(b.platformSource); break;
           case 'status':   cmp = a.status.localeCompare(b.status); break;
+          case 'tradeban': cmp = getTradeBanRemainingMs(a) - getTradeBanRemainingMs(b); break;
           case 'date':     cmp = new Date(a.tradedAt || 0).getTime() - new Date(b.tradedAt || 0).getTime(); break;
         }
         return sortDir === 'desc' ? -cmp : cmp;
@@ -342,6 +350,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
               </th>
               <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('platform')}>Платформа<SortIcon col="platform" /></th>
               <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('status')}>Статус<SortIcon col="status" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('tradeban')}>Трейд-бан<SortIcon col="tradeban" /></th>
               <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('date')}>Дата<SortIcon col="date" /></th>
               {onToggleHide && <th className="pb-3 w-10"></th>}
             </tr>
@@ -423,28 +432,33 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                     </span>
                   </td>
                   <td className="py-3 pr-4 whitespace-nowrap">
-                    <div className="flex flex-col gap-0.5">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          trade.status === 'COMPLETED'
-                            ? 'bg-accent-green/10 text-accent-green'
-                            : trade.status === 'TRADE_HOLD'
-                              ? 'bg-yellow-500/10 text-yellow-400'
-                              : trade.status === 'ACCEPTED'
-                                ? 'bg-blue-500/10 text-blue-400'
-                                : trade.status === 'CANCELLED'
-                                  ? 'bg-accent-red/10 text-accent-red'
-                                  : 'bg-accent-orange/10 text-accent-orange'
-                        }`}
-                      >
-                        {getStatusLabel(trade.status, type, trade.platformSource)}
-                      </span>
-                      {trade.tradedAt && showTradeBan(trade) && (
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        trade.status === 'COMPLETED'
+                          ? 'bg-accent-green/10 text-accent-green'
+                          : trade.status === 'CANCELLED'
+                            ? 'bg-accent-red/10 text-accent-red'
+                            : trade.status === 'ACCEPTED'
+                              ? 'bg-blue-500/10 text-blue-400'
+                              : 'bg-accent-orange/10 text-accent-orange'
+                      }`}
+                    >
+                      {getStatusLabel(trade.status, type, trade.platformSource)}
+                    </span>
+                  </td>
+                  <td className="py-3 pr-4 whitespace-nowrap">
+                    {trade.tradedAt && showTradeBan(trade) ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-block rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                          Трейд-бан
+                        </span>
                         <span className="text-[10px] text-yellow-500/70">
                           {getTradeHoldRemaining(trade.tradedAt)}
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <span className="text-dark-600">—</span>
+                    )}
                   </td>
                   <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
                     {formatDate(trade.tradedAt)}

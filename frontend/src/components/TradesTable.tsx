@@ -314,7 +314,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-auto">
           <thead>
             <tr className="border-b border-dark-700/50 text-left text-dark-400">
               {onBulkHide && (
@@ -334,15 +334,15 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   </button>
                 </th>
               )}
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('name')}>Предмет<SortIcon col="name" /></th>
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('wear')}>Wear<SortIcon col="wear" /></th>
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('float')}>Float<SortIcon col="float" /></th>
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('price')}>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('name')}>Предмет<SortIcon col="name" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('wear')}>Wear<SortIcon col="wear" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('float')}>Float<SortIcon col="float" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('price')}>
                 {type === 'BUY' ? 'Цена покупки' : 'Цена продажи'}<SortIcon col="price" />
               </th>
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('platform')}>Платформа<SortIcon col="platform" /></th>
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('status')}>Статус<SortIcon col="status" /></th>
-              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('date')}>Дата<SortIcon col="date" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('platform')}>Платформа<SortIcon col="platform" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('status')}>Статус<SortIcon col="status" /></th>
+              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('date')}>Дата<SortIcon col="date" /></th>
               {onToggleHide && <th className="pb-3 w-10"></th>}
             </tr>
           </thead>
@@ -391,13 +391,13 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 pr-4 text-dark-400">
+                  <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
                     {i?.wear || '—'}
                   </td>
-                  <td className="py-3 pr-4 font-mono text-xs text-dark-400">
+                  <td className="py-3 pr-4 font-mono text-xs text-dark-400 whitespace-nowrap">
                     {i?.floatValue?.toFixed(8) || '—'}
                   </td>
-                  <td className="py-3 pr-4 font-medium">
+                  <td className="py-3 pr-4 font-medium whitespace-nowrap">
                     {(() => {
                       const price = type === 'BUY' ? (trade.buyPrice || 0) : (trade.sellPrice || 0);
                       if (trade.platformSource === 'MARKET_CSGO') {
@@ -417,12 +417,12 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                       return formatUSD(price);
                     })()}
                   </td>
-                  <td className="py-3 pr-4">
+                  <td className="py-3 pr-4 whitespace-nowrap">
                     <span className="rounded-full bg-dark-700 px-2 py-0.5 text-xs font-medium text-dark-300">
                       {platformLabel(trade.platformSource)}
                     </span>
                   </td>
-                  <td className="py-3 pr-4">
+                  <td className="py-3 pr-4 whitespace-nowrap">
                     <div className="flex flex-col gap-0.5">
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -446,7 +446,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                       )}
                     </div>
                   </td>
-                  <td className="py-3 pr-4 text-dark-400">
+                  <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
                     {formatDate(trade.tradedAt)}
                   </td>
                   {onToggleHide && (

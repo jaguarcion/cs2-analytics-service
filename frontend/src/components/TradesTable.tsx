@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from 'lucide-react';
 import type { TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
@@ -85,6 +85,37 @@ interface TradesTableProps {
 
 type SortKey = 'name' | 'wear' | 'float' | 'price' | 'platform' | 'status' | 'tradeban' | 'date';
 type SortDir = 'asc' | 'desc';
+type ColumnId = SortKey;
+
+const ALL_COLUMNS: { id: ColumnId; label: string }[] = [
+  { id: 'name', label: 'Предмет' },
+  { id: 'wear', label: 'Wear' },
+  { id: 'float', label: 'Float' },
+  { id: 'price', label: 'Цена' },
+  { id: 'platform', label: 'Платформа' },
+  { id: 'status', label: 'Статус' },
+  { id: 'tradeban', label: 'Трейд-бан' },
+  { id: 'date', label: 'Дата' },
+];
+
+const DEFAULT_VISIBLE: ColumnId[] = ['name', 'wear', 'float', 'price', 'platform', 'status', 'tradeban', 'date'];
+const LS_KEY = 'trades-table-columns';
+
+function loadVisibleColumns(): Set<ColumnId> {
+  if (typeof window === 'undefined') return new Set(DEFAULT_VISIBLE);
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw) as ColumnId[];
+      if (Array.isArray(arr) && arr.length > 0) return new Set(arr);
+    }
+  } catch {}
+  return new Set(DEFAULT_VISIBLE);
+}
+
+function saveVisibleColumns(cols: Set<ColumnId>) {
+  localStorage.setItem(LS_KEY, JSON.stringify(Array.from(cols)));
+}
 
 export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -94,8 +125,23 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [visibleCols, setVisibleCols] = useState<Set<ColumnId>>(loadVisibleColumns);
+  const [colsDropdownOpen, setColsDropdownOpen] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const colsDropdownRef = useRef<HTMLDivElement>(null);
+
+  const toggleColumn = (col: ColumnId) => {
+    setVisibleCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(col) && next.size > 1) next.delete(col);
+      else next.add(col);
+      saveVisibleColumns(next);
+      return next;
+    });
+  };
+
+  const show = (col: ColumnId) => visibleCols.has(col);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -114,11 +160,14 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
       : <ArrowDown className="ml-1 inline h-3 w-3 text-accent-blue" />;
   };
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setTypeDropdownOpen(false);
+      }
+      if (colsDropdownRef.current && !colsDropdownRef.current.contains(e.target as Node)) {
+        setColsDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -290,6 +339,40 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
           )}
         </div>
 
+        {/* Column visibility settings */}
+        <div className="relative" ref={colsDropdownRef}>
+          <button
+            onClick={() => setColsDropdownOpen(!colsDropdownOpen)}
+            className="flex items-center gap-1.5 rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-dark-200 hover:border-dark-600"
+            title="Настройка столбцов"
+          >
+            <Settings2 className="h-4 w-4 text-dark-400" />
+          </button>
+          {colsDropdownOpen && (
+            <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-dark-700 bg-dark-900 shadow-xl">
+              <div className="px-3 py-2 text-xs font-medium text-dark-400 border-b border-dark-700">Столбцы</div>
+              {ALL_COLUMNS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => toggleColumn(id)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-dark-200 hover:bg-dark-700/50"
+                >
+                  <span
+                    className={`flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors ${
+                      visibleCols.has(id)
+                        ? 'border-accent-blue bg-accent-blue text-white'
+                        : 'border-dark-600'
+                    }`}
+                  >
+                    {visibleCols.has(id) && <Check className="h-2.5 w-2.5" />}
+                  </span>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Filter info */}
         {(search || itemTypeFilter !== 'all') && (
           <span className="text-xs text-dark-500">
@@ -342,16 +425,16 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   </button>
                 </th>
               )}
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('name')}>Предмет<SortIcon col="name" /></th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('wear')}>Wear<SortIcon col="wear" /></th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('float')}>Float<SortIcon col="float" /></th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('price')}>
+              {show('name') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('name')}>Предмет<SortIcon col="name" /></th>}
+              {show('wear') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('wear')}>Wear<SortIcon col="wear" /></th>}
+              {show('float') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('float')}>Float<SortIcon col="float" /></th>}
+              {show('price') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('price')}>
                 {type === 'BUY' ? 'Цена покупки' : 'Цена продажи'}<SortIcon col="price" />
-              </th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('platform')}>Платформа<SortIcon col="platform" /></th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('status')}>Статус<SortIcon col="status" /></th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('tradeban')}>Трейд-бан<SortIcon col="tradeban" /></th>
-              <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('date')}>Дата<SortIcon col="date" /></th>
+              </th>}
+              {show('platform') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('platform')}>Платформа<SortIcon col="platform" /></th>}
+              {show('status') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('status')}>Статус<SortIcon col="status" /></th>}
+              {show('tradeban') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('tradeban')}>Трейд-бан<SortIcon col="tradeban" /></th>}
+              {show('date') && <th className="pb-3 pr-4 font-medium whitespace-nowrap cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('date')}>Дата<SortIcon col="date" /></th>}
               {onToggleHide && <th className="pb-3 w-10"></th>}
             </tr>
           </thead>
@@ -378,91 +461,107 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                       </button>
                     </td>
                   )}
-                  <td className="py-3 pr-4">
-                    <div className="flex items-center gap-3">
-                      {i?.imageUrl ? (
-                        <img
-                          src={
-                            i.imageUrl.startsWith('http')
-                              ? i.imageUrl
-                              : `https://community.steamstatic.com/economy/image/${i.imageUrl}/96fx96f`
-                          }
-                          alt={i.name}
-                          className="h-10 w-14 rounded object-contain bg-dark-700/50"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-14 items-center justify-center rounded bg-dark-700/50 text-dark-500 text-xs">
-                          ?
-                        </div>
-                      )}
-                      <span className="font-medium text-dark-50">
-                        {i?.name || '—'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
-                    {i?.wear || '—'}
-                  </td>
-                  <td className="py-3 pr-4 font-mono text-xs text-dark-400 whitespace-nowrap">
-                    {i?.floatValue?.toFixed(8) || '—'}
-                  </td>
-                  <td className="py-3 pr-4 font-medium whitespace-nowrap">
-                    {(() => {
-                      const price = type === 'BUY' ? (trade.buyPrice || 0) : (trade.sellPrice || 0);
-                      if (trade.platformSource === 'MARKET_CSGO') {
-                        const rubInt = Math.round(price);
-                        const usdEquiv = fxRate && fxRate > 0 ? price / fxRate : null;
-                        return (
-                          <div>
-                            <span>{rubInt.toLocaleString('ru-RU')} ₽</span>
-                            {usdEquiv !== null && (
-                              <span className="ml-1.5 text-xs text-dark-500">
-                                ≈ {formatUSD(usdEquiv)}
-                              </span>
-                            )}
+                  {show('name') && (
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-3">
+                        {i?.imageUrl ? (
+                          <img
+                            src={
+                              i.imageUrl.startsWith('http')
+                                ? i.imageUrl
+                                : `https://community.steamstatic.com/economy/image/${i.imageUrl}/96fx96f`
+                            }
+                            alt={i.name}
+                            className="h-10 w-14 rounded object-contain bg-dark-700/50"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-14 items-center justify-center rounded bg-dark-700/50 text-dark-500 text-xs">
+                            ?
                           </div>
-                        );
-                      }
-                      return formatUSD(price);
-                    })()}
-                  </td>
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    <span className="rounded-full bg-dark-700 px-2 py-0.5 text-xs font-medium text-dark-300">
-                      {platformLabel(trade.platformSource)}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        trade.status === 'COMPLETED'
-                          ? 'bg-accent-green/10 text-accent-green'
-                          : trade.status === 'CANCELLED'
-                            ? 'bg-accent-red/10 text-accent-red'
-                            : trade.status === 'ACCEPTED'
-                              ? 'bg-blue-500/10 text-blue-400'
-                              : 'bg-accent-orange/10 text-accent-orange'
-                      }`}
-                    >
-                      {getStatusLabel(trade.status, type, trade.platformSource)}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    {trade.tradedAt && showTradeBan(trade) ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="inline-block rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">
-                          Трейд-бан
-                        </span>
-                        <span className="text-[10px] text-yellow-500/70">
-                          {getTradeHoldRemaining(trade.tradedAt)}
+                        )}
+                        <span className="font-medium text-dark-50">
+                          {i?.name || '—'}
                         </span>
                       </div>
-                    ) : (
-                      <span className="text-dark-600">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
-                    {formatDate(trade.tradedAt)}
-                  </td>
+                    </td>
+                  )}
+                  {show('wear') && (
+                    <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
+                      {i?.wear || '—'}
+                    </td>
+                  )}
+                  {show('float') && (
+                    <td className="py-3 pr-4 font-mono text-xs text-dark-400 whitespace-nowrap">
+                      {i?.floatValue?.toFixed(8) || '—'}
+                    </td>
+                  )}
+                  {show('price') && (
+                    <td className="py-3 pr-4 font-medium whitespace-nowrap">
+                      {(() => {
+                        const price = type === 'BUY' ? (trade.buyPrice || 0) : (trade.sellPrice || 0);
+                        if (trade.platformSource === 'MARKET_CSGO') {
+                          const rubInt = Math.round(price);
+                          const usdEquiv = fxRate && fxRate > 0 ? price / fxRate : null;
+                          return (
+                            <div>
+                              <span>{rubInt.toLocaleString('ru-RU')} ₽</span>
+                              {usdEquiv !== null && (
+                                <span className="ml-1.5 text-xs text-dark-500">
+                                  ≈ {formatUSD(usdEquiv)}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return formatUSD(price);
+                      })()}
+                    </td>
+                  )}
+                  {show('platform') && (
+                    <td className="py-3 pr-4 whitespace-nowrap">
+                      <span className="rounded-full bg-dark-700 px-2 py-0.5 text-xs font-medium text-dark-300">
+                        {platformLabel(trade.platformSource)}
+                      </span>
+                    </td>
+                  )}
+                  {show('status') && (
+                    <td className="py-3 pr-4 whitespace-nowrap">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          trade.status === 'COMPLETED'
+                            ? 'bg-accent-green/10 text-accent-green'
+                            : trade.status === 'CANCELLED'
+                              ? 'bg-accent-red/10 text-accent-red'
+                              : trade.status === 'ACCEPTED'
+                                ? 'bg-blue-500/10 text-blue-400'
+                                : 'bg-accent-orange/10 text-accent-orange'
+                        }`}
+                      >
+                        {getStatusLabel(trade.status, type, trade.platformSource)}
+                      </span>
+                    </td>
+                  )}
+                  {show('tradeban') && (
+                    <td className="py-3 pr-4 whitespace-nowrap">
+                      {trade.tradedAt && showTradeBan(trade) ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="inline-block rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                            Трейд-бан
+                          </span>
+                          <span className="text-[10px] text-yellow-500/70">
+                            {getTradeHoldRemaining(trade.tradedAt)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-dark-600">—</span>
+                      )}
+                    </td>
+                  )}
+                  {show('date') && (
+                    <td className="py-3 pr-4 text-dark-400 whitespace-nowrap">
+                      {formatDate(trade.tradedAt)}
+                    </td>
+                  )}
                   {onToggleHide && (
                     <td className="py-3">
                       <button

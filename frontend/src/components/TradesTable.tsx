@@ -211,7 +211,15 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
           }
           case 'platform': cmp = a.platformSource.localeCompare(b.platformSource); break;
           case 'status':   cmp = a.status.localeCompare(b.status); break;
-          case 'tradeban': cmp = getTradeBanRemainingMs(a) - getTradeBanRemainingMs(b); break;
+          case 'tradeban': {
+            const ta = getTradeBanRemainingMs(a);
+            const tb = getTradeBanRemainingMs(b);
+            if (ta === 0 && tb === 0) cmp = 0;
+            else if (ta === 0) return 1;  // a has no ban → always bottom
+            else if (tb === 0) return -1; // b has no ban → always bottom
+            else cmp = ta - tb;
+            break;
+          }
           case 'date':     cmp = new Date(a.tradedAt || 0).getTime() - new Date(b.tradedAt || 0).getTime(); break;
         }
         return sortDir === 'desc' ? -cmp : cmp;

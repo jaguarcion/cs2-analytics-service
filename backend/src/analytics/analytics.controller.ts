@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Query, Param, Body, UseGuards } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
-import { CsfloatService } from '../collectors/csfloat/csfloat.service';
-import { MarketCsgoService } from '../collectors/market-csgo/market-csgo.service';
 
 @Controller('analytics')
 @UseGuards(AuthGuard)
@@ -11,8 +11,7 @@ export class AnalyticsController {
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly prisma: PrismaService,
-    private readonly csfloatService: CsfloatService,
-    private readonly marketCsgoService: MarketCsgoService,
+    private readonly httpService: HttpService,
   ) {}
 
   @Get('summary')
@@ -145,28 +144,42 @@ export class AnalyticsController {
       marketRate: 0,
     };
 
+    const baseUrl = 'http://localhost:3000/api';
+
     try {
-      results.csfloatStall = await this.csfloatService.syncStall();
+      const csfloatStallRes = await lastValueFrom(
+        this.httpService.post(`${baseUrl}/csfloat/sync/stall`)
+      );
+      results.csfloatStall = parseInt(csfloatStallRes.data?.message?.match(/\d+/)?.[0]) || 0;
     } catch (e) {
-      this.analyticsService['logger']?.warn?.(`CSFloat stall sync failed: ${e.message}`);
+      console.warn('CSFloat stall sync failed:', e.message);
     }
 
     try {
-      results.csfloatTrades = await this.csfloatService.syncTrades();
+      const csfloatTradesRes = await lastValueFrom(
+        this.httpService.post(`${baseUrl}/csfloat/sync/trades`)
+      );
+      results.csfloatTrades = parseInt(csfloatTradesRes.data?.message?.match(/\d+/)?.[0]) || 0;
     } catch (e) {
-      this.analyticsService['logger']?.warn?.(`CSFloat trades sync failed: ${e.message}`);
+      console.warn('CSFloat trades sync failed:', e.message);
     }
 
     try {
-      results.marketTrades = await this.marketCsgoService.syncTrades();
+      const marketTradesRes = await lastValueFrom(
+        this.httpService.post(`${baseUrl}/market-csgo/sync/trades`)
+      );
+      results.marketTrades = parseInt(marketTradesRes.data?.message?.match(/\d+/)?.[0]) || 0;
     } catch (e) {
-      this.analyticsService['logger']?.warn?.(`Market.CSGO trades sync failed: ${e.message}`);
+      console.warn('Market.CSGO trades sync failed:', e.message);
     }
 
     try {
-      results.marketRate = await this.marketCsgoService.syncWithdrawRate();
+      const marketRateRes = await lastValueFrom(
+        this.httpService.post(`${baseUrl}/market-csgo/sync/rate`)
+      );
+      results.marketRate = marketRateRes.data?.rate || 0;
     } catch (e) {
-      this.analyticsService['logger']?.warn?.(`Market.CSGO rate sync failed: ${e.message}`);
+      console.warn('Market.CSGO rate sync failed:', e.message);
     }
 
     return {

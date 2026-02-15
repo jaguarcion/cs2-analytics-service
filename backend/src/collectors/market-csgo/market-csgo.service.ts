@@ -14,6 +14,11 @@ export interface MarketTrade {
   asset_id?: string;
   class_id?: string;
   instance_id?: string;
+  settlement?: number;
+  live_time?: number;
+  left?: number;
+  event?: 'buy' | 'sell';
+  stage?: string;
   _source?: 'active' | 'history';
 }
 
@@ -62,6 +67,9 @@ export class MarketCsgoService {
         asset_id: item.asset_id || item.assetid,
         class_id: item.classid || item.class_id,
         instance_id: item.instanceid || item.instance_id,
+        settlement: item.settlement ? Number(item.settlement) : undefined,
+        live_time: item.live_time ? Number(item.live_time) : undefined,
+        left: item.left ? Number(item.left) : undefined,
         _source: 'active' as const,
       }));
     } catch (error) {
@@ -87,11 +95,16 @@ export class MarketCsgoService {
         id: String(item.item_id || item.id),
         market_hash_name: item.market_hash_name || '',
         float: item.float ? parseFloat(item.float) : undefined,
-        price: item.received || item.price || 0, // already in RUB
+        price: item.received || item.paid || item.price || 0,
         currency: item.currency || 'RUB',
         status: item.stage || item.status || 'completed',
         created_at: item.time ? new Date(item.time * 1000).toISOString() : undefined,
         asset_id: item.asset_id || item.assetid,
+        class_id: item.class || item.classid || item.class_id,
+        instance_id: item.instance || item.instanceid || item.instance_id,
+        settlement: item.settlement ? Number(item.settlement) : undefined,
+        event: item.event,
+        stage: item.stage,
         _source: 'history' as const,
       }));
     } catch (error) {
@@ -194,7 +207,7 @@ export class MarketCsgoService {
 
         // Determine status based on source and numeric status
         const listingStatus = this.mapListingStatus(trade.status);
-        const tradeStatus = this.mapTradeStatus(trade.status, trade._source);
+        const tradeStatus = this.mapTradeStatus(trade);
 
         await this.prisma.listing.upsert({
           where: {
@@ -317,15 +330,17 @@ export class MarketCsgoService {
   }
 
   private mapListingStatus(status: string): 'ACTIVE' | 'SOLD' | 'CANCELLED' | 'DELISTED' {
-    // Market.CSGO numeric statuses:
-    // 1 = on sale, 2 = given/delivered, 3 = need confirm,
-    // 4 = need give, 5 = waiting, 6 = given no confirm, 7 = sold/completed
+    // Market.CSGO numeric statuses from /api/v2/items:
+    // 1 = on sale, 2 = sold (need to give item), 3 = waiting for seller,
+    // 4 = can pick up purchased item
     switch (status) {
       case '1':
       case 'active':
       case 'on_sale':
         return 'ACTIVE';
       case '2':
+      case '3':
+      case '4':
       case '7':
       case 'sold':
       case 'completed':
@@ -340,16 +355,43 @@ export class MarketCsgoService {
   }
 
   private mapTradeStatus(
-    status: string,
-    source?: 'active' | 'history',
-  ): 'PENDING' | 'COMPLETED' {
-    // status=7 or status=2 means sold/delivered
-    if (status === '7' || status === '2' || status === 'sold' || status === 'completed') {
+    trade: MarketTrade,
+  ): 'PENDING' | 'COMPLETED' | 'TRADE_HOLD' | 'ACCEPTED' {
+    // History items with stage=2 (ITEM_GIVEN) or stage=5 (TIMED_OUT) are completed
+    if (trade._source === 'history') {
       return 'COMPLETED';
     }
-    if (source === 'history') {
+
+    // Active items statuses from /api/v2/items:
+    // 1 = on sale, 2 = sold (need to give item), 3 = waiting for seller, 4 = can pick up
+    const s = trade.status;
+
+    // settlement > 0 means trade successful, item delivered, waiting for finalization
+    if (trade.settlement && trade.settlement > 0) {
       return 'COMPLETED';
     }
+
+    // status 2 = sold, need to give item to bot (trade in progress)
+    // status 3 = waiting for seller to send item
+    if (s === '2' || s === '3') {
+      return 'TRADE_HOLD';
+    }
+
+    // status 4 = can pick up purchased item
+    if (s === '4') {
+      return 'ACCEPTED';
+    }
+
+    // status 1 = on sale
+    if (s === '1' || s === 'active' || s === 'on_sale') {
+      return 'PENDING';
+    }
+
+    // status 7 = sold/completed (legacy)
+    if (s === '7' || s === 'sold' || s === 'completed') {
+      return 'COMPLETED';
+    }
+
     return 'PENDING';
   }
 }

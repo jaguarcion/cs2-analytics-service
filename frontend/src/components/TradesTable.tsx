@@ -22,6 +22,40 @@ function getTradeHoldRemaining(tradedAt: string): string | null {
   return `~${hours}ч`;
 }
 
+function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string): string {
+  if (platform === 'MARKET_CSGO') {
+    switch (status) {
+      case 'COMPLETED': return 'Продано';
+      case 'TRADE_HOLD': return 'Передача';
+      case 'ACCEPTED': return 'Забрать';
+      case 'PENDING': return 'В продаже';
+      case 'CANCELLED': return 'Отменён';
+      default: return status;
+    }
+  }
+
+  switch (status) {
+    case 'COMPLETED': return type === 'SELL' ? 'Продано' : 'Куплено';
+    case 'TRADE_HOLD': return 'Трейд-бан';
+    case 'ACCEPTED': return 'В процессе';
+    case 'PENDING': return type === 'SELL' ? 'В продаже' : 'Ожидание';
+    case 'CANCELLED': return 'Отменён';
+    default: return status;
+  }
+}
+
+function showTradeBan(trade: TradeItem): boolean {
+  // Show trade ban countdown for:
+  // - TRADE_HOLD status (any platform)
+  // - PENDING sell items (on sale — show ban from purchase date)
+  if (trade.status === 'TRADE_HOLD') return true;
+  if (trade.status === 'PENDING' && trade.tradedAt) {
+    const remaining = getTradeHoldRemaining(trade.tradedAt);
+    return remaining !== null && remaining !== 'Истёк';
+  }
+  return false;
+}
+
 interface TradesTableProps {
   trades: TradeItem[];
   type: 'BUY' | 'SELL';
@@ -162,15 +196,9 @@ export default function TradesTable({ trades, type, fxRate }: TradesTableProps) 
                                 : 'bg-accent-orange/10 text-accent-orange'
                       }`}
                     >
-                      {{
-                        COMPLETED: type === 'SELL' ? 'Продано' : 'Куплено',
-                        TRADE_HOLD: 'Трейд-бан',
-                        ACCEPTED: 'В процессе',
-                        PENDING: type === 'SELL' ? 'В продаже' : 'Ожидание',
-                        CANCELLED: 'Отменён',
-                      }[trade.status] || trade.status}
+                      {getStatusLabel(trade.status, type, trade.platformSource)}
                     </span>
-                    {trade.status === 'TRADE_HOLD' && trade.tradedAt && (
+                    {trade.tradedAt && showTradeBan(trade) && (
                       <span className="text-[10px] text-yellow-500/70">
                         {getTradeHoldRemaining(trade.tradedAt)}
                       </span>

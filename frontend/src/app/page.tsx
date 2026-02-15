@@ -36,7 +36,7 @@ import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { isAuthenticated, removeToken } from '@/lib/auth';
 
-type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inv_csfloat' | 'inv_market' | 'hidden';
+type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inventory' | 'hidden';
 
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -122,16 +122,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const csfloatSells = sales.filter((t) => t.platformSource === 'CSFLOAT');
   const marketSells = sales.filter((t) => t.platformSource === 'MARKET_CSGO');
   const hiddenAll = [...hiddenPurchases, ...hiddenSales];
-  const invCsfloat = inventory.filter((t) => t.platformSource === 'CSFLOAT');
-  const invMarket = inventory.filter((t) => t.platformSource === 'MARKET_CSGO');
 
   const tabs: { value: Tab; label: string; count: number }[] = [
     { value: 'overview', label: 'Общая стата', count: profitEntries.length },
     { value: 'csfloat_buy', label: 'CSFloat — Покупки', count: csfloatBuys.length },
     { value: 'csfloat_sell', label: 'CSFloat — Продажи', count: csfloatSells.length },
     { value: 'market_sell', label: 'Market.CSGO — Продажи', count: marketSells.length },
-    { value: 'inv_csfloat', label: 'Инвентарь CSFloat', count: invCsfloat.length },
-    { value: 'inv_market', label: 'Инвентарь MarketCSGO', count: invMarket.length },
+    { value: 'inventory', label: 'Инвентарь', count: inventory.length },
     { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
   ];
 
@@ -305,20 +302,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
-              {tab === 'inv_csfloat' && (
+              {tab === 'inventory' && (
                 <div>
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Инвентарь — CSFloat
+                    Инвентарь
                   </h2>
-                  <TradesTable trades={invCsfloat} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
-                </div>
-              )}
-              {tab === 'inv_market' && (
-                <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Инвентарь — Market.CSGO
-                  </h2>
-                  <TradesTable trades={invMarket} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                  <TradesTable trades={inventory} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
               {tab === 'hidden' && (

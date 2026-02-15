@@ -23,6 +23,7 @@ export default function ProfitTable({ entries }: ProfitTableProps) {
         <thead>
           <tr className="border-b border-dark-700/50 text-left text-dark-400">
             <th className="pb-3 pr-4 font-medium">Предмет</th>
+            <th className="pb-3 pr-4 font-medium">Площадки</th>
             <th className="pb-3 pr-4 font-medium">Покупка</th>
             <th className="pb-3 pr-4 font-medium">Продажа</th>
             <th className="pb-3 pr-4 font-medium">Комиссия</th>
@@ -57,6 +58,17 @@ export default function ProfitTable({ entries }: ProfitTableProps) {
                   )}
                   <span className="font-medium text-dark-50">
                     {entry.itemName}
+                  </span>
+                </div>
+              </td>
+              <td className="py-3 pr-4">
+                <div className="flex items-center gap-1 text-[10px]">
+                  <span className="rounded bg-dark-700 px-1.5 py-0.5 text-dark-300">
+                    {platformLabel(entry.buyPlatform)}
+                  </span>
+                  <span className="text-dark-600">→</span>
+                  <span className="rounded bg-dark-700 px-1.5 py-0.5 text-dark-300">
+                    {platformLabel(entry.sellPlatform)}
                   </span>
                 </div>
               </td>

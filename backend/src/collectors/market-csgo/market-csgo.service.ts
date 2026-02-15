@@ -352,6 +352,11 @@ export class MarketCsgoService {
         // Try to use float from Market.CSGO if available
         let floatValue = trade.float || null;
 
+        // Prepare string IDs to avoid type mismatch
+        const assetIdStr = trade.asset_id ? String(trade.asset_id) : undefined;
+        const classIdStr = trade.class_id ? String(trade.class_id) : undefined;
+        const instanceIdStr = trade.instance_id ? String(trade.instance_id) : undefined;
+
         const item = await this.prisma.item.upsert({
           where: {
             platformSource_externalId: {
@@ -364,9 +369,10 @@ export class MarketCsgoService {
             wear,
             floatValue,
             imageUrl: trade.class_id ? imageUrl : undefined,
-            classId: trade.class_id || undefined,
-            instanceId: trade.instance_id || undefined,
-            assetId: trade.asset_id || undefined,
+            // Only update IDs if they are present in the incoming data
+            ...(classIdStr && { classId: classIdStr }),
+            ...(instanceIdStr && { instanceId: instanceIdStr }),
+            ...(assetIdStr && { assetId: assetIdStr }),
           },
           create: {
             externalId: trade.id,
@@ -375,8 +381,9 @@ export class MarketCsgoService {
             wear,
             floatValue,
             imageUrl: trade.class_id ? imageUrl : null,
-            classId: trade.class_id || null,
-            instanceId: trade.instance_id || null,
+            classId: classIdStr,
+            instanceId: instanceIdStr,
+            assetId: assetIdStr,
           },
         });
 

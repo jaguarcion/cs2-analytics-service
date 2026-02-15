@@ -15,6 +15,14 @@ export interface CsfloatStallItem {
   price: number;
   created_at: string;
   state: string;
+  // Extended fields from API for trade hold detection
+  trade?: {
+    state?: string;
+    contract_state?: string;
+  };
+  contract?: {
+    state?: string;
+  };
 }
 
 export interface CsfloatTrade {
@@ -206,6 +214,34 @@ export class CsfloatService {
           },
         });
 
+        // Determine if item is sold but in trade hold (trade ban)
+        // state='listed' = actually on sale
+        // state='sold' or contract.state='sold' = sold, waiting for delivery (trade hold)
+        const isListed = stallItem.state === 'listed';
+        const isSold = stallItem.state === 'sold' || stallItem.contract?.state === 'sold';
+        const tradeState = stallItem.trade?.state || '';
+        const contractState = stallItem.contract?.state || stallItem.contract?.state || '';
+        
+        // Determine listing status
+        let listingStatus: 'ACTIVE' | 'SOLD' | 'CANCELLED' | 'DELISTED';
+        let tradeStatus: 'PENDING' | 'COMPLETED' | 'TRADE_HOLD' | 'ACCEPTED' | 'CANCELLED';
+        
+        if (isListed) {
+          listingStatus = 'ACTIVE';
+          tradeStatus = 'PENDING';
+        } else if (isSold) {
+          listingStatus = 'SOLD';
+          // Check if still in trade hold (pending/queued delivery) or completed
+          if (tradeState === 'pending' || tradeState === 'queued' || contractState === 'sold') {
+            tradeStatus = 'TRADE_HOLD';
+          } else {
+            tradeStatus = 'COMPLETED';
+          }
+        } else {
+          listingStatus = 'SOLD';
+          tradeStatus = 'COMPLETED';
+        }
+
         await this.prisma.listing.upsert({
           where: {
             platformSource_externalId: {
@@ -214,8 +250,8 @@ export class CsfloatService {
             },
           },
           update: {
-            price: stallItem.price / 100, // cents to dollars
-            status: stallItem.state === 'listed' ? 'ACTIVE' : 'SOLD',
+            price: stallItem.price / 100,
+            status: listingStatus,
             listedAt: new Date(stallItem.created_at),
           },
           create: {
@@ -224,8 +260,37 @@ export class CsfloatService {
             platformSource: 'CSFLOAT',
             price: stallItem.price / 100,
             currency: 'USD',
-            status: stallItem.state === 'listed' ? 'ACTIVE' : 'SOLD',
+            status: listingStatus,
             listedAt: new Date(stallItem.created_at),
+          },
+        });
+
+        // Also create a SELL trade record for profit calculation
+        // This makes stall items appear in the "CSFloat - Sales" tab
+        const priceUsd = stallItem.price / 100;
+        
+        await this.prisma.trade.upsert({
+          where: {
+            platformSource_externalId: {
+              platformSource: 'CSFLOAT',
+              externalId: `stall_${stallItem.id}`,
+            },
+          },
+          update: {
+            sellPrice: priceUsd,
+            commission: 0.02,
+            status: tradeStatus,
+            tradedAt: new Date(stallItem.created_at),
+          },
+          create: {
+            externalId: `stall_${stallItem.id}`,
+            platformSource: 'CSFLOAT',
+            itemId: item.id,
+            sellPrice: priceUsd,
+            commission: 0.02,
+            type: 'SELL',
+            status: tradeStatus,
+            tradedAt: new Date(stallItem.created_at),
           },
         });
 

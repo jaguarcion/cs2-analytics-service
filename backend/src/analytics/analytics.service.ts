@@ -276,6 +276,43 @@ export class AnalyticsService {
     };
   }
 
+  async getInventory(platform?: 'CSFLOAT' | 'MARKET_CSGO' | 'ALL') {
+    const TRADE_BAN_MS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Get all unmatched buy IDs
+    const matchedBuyIds = await this.matcher.getMatchedBuyIds();
+
+    // Get all BUY trades that are completed or in trade hold
+    const platformFilter =
+      platform && platform !== 'ALL'
+        ? { platformSource: platform as any }
+        : {};
+
+    const buyTrades = await this.prisma.trade.findMany({
+      where: {
+        type: 'BUY',
+        hidden: false,
+        status: { in: ['COMPLETED', 'TRADE_HOLD'] },
+        ...platformFilter,
+      },
+      include: { item: true },
+      orderBy: { tradedAt: 'desc' },
+    });
+
+    // Filter: not matched, trade ban expired
+    return buyTrades.filter((t) => {
+      // Skip matched trades (already sold)
+      if (matchedBuyIds.has(t.id)) return false;
+      // Skip if trade ban is still active
+      if (t.tradedAt) {
+        const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
+        if (banEnd > now) return false;
+      }
+      return true;
+    });
+  }
+
   async getSyncStatus() {
     const logs = await this.prisma.syncLog.findMany({
       orderBy: { createdAt: 'desc' },

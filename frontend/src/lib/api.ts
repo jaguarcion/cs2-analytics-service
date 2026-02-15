@@ -112,6 +112,11 @@ export async function fetchSales(params: QueryParams & { hidden?: boolean }): Pr
   return data;
 }
 
+export async function fetchInventory(params: { platform?: string }): Promise<TradeItem[]> {
+  const { data } = await api.get('/analytics/inventory', { params });
+  return data;
+}
+
 export async function toggleTradeHidden(tradeId: string): Promise<{ id: string; hidden: boolean }> {
   const { data } = await api.post(`/analytics/trades/${tradeId}/toggle-hide`);
   return data;

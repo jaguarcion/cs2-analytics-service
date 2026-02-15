@@ -201,6 +201,72 @@ export class MatcherService {
     return matched;
   }
 
+  /**
+   * Returns the set of BUY trade IDs that have been matched to a SELL trade.
+   * Used to determine inventory (unmatched buys = idle items).
+   */
+  async getMatchedBuyIds(): Promise<Set<string>> {
+    const buyTrades = await this.prisma.trade.findMany({
+      where: { type: 'BUY', hidden: false },
+      include: { item: true },
+      orderBy: { tradedAt: 'asc' },
+    });
+
+    const sellTrades = await this.prisma.trade.findMany({
+      where: { type: 'SELL', hidden: false, status: { in: ['COMPLETED', 'TRADE_HOLD', 'ACCEPTED'] } },
+      include: { item: true },
+      orderBy: { tradedAt: 'asc' },
+    });
+
+    const usedBuyIds = new Set<string>();
+    const usedSellIds = new Set<string>();
+
+    const buyNorms = buyTrades.map((b) => ({
+      trade: b,
+      norm: this.normalizer.normalizeItem(b.item),
+    }));
+    const sellNorms = sellTrades.map((s) => ({
+      trade: s,
+      norm: this.normalizer.normalizeItem(s.item),
+    }));
+
+    // Pass 1: asset_id
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      if (!sell.trade.item.assetId) continue;
+      const buyMatch = buyNorms.find(
+        (b) => !usedBuyIds.has(b.trade.id) && b.trade.item.assetId && b.trade.item.assetId === sell.trade.item.assetId,
+      );
+      if (buyMatch) { usedBuyIds.add(buyMatch.trade.id); usedSellIds.add(sell.trade.id); }
+    }
+
+    // Pass 2: name + float
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      if (sell.norm.floatValue === null) continue;
+      const buyMatch = buyNorms.find((b) => {
+        if (usedBuyIds.has(b.trade.id)) return false;
+        if (b.norm.floatValue === null) return false;
+        return b.norm.normalizedName === sell.norm.normalizedName && Math.abs(b.norm.floatValue - sell.norm.floatValue!) < 0.0000001;
+      });
+      if (buyMatch) { usedBuyIds.add(buyMatch.trade.id); usedSellIds.add(sell.trade.id); }
+    }
+
+    // Pass 3: name only (buy < sell)
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      const buyMatch = buyNorms.find((b) => {
+        if (usedBuyIds.has(b.trade.id)) return false;
+        if (b.norm.normalizedName !== sell.norm.normalizedName) return false;
+        if (b.trade.tradedAt && sell.trade.tradedAt) return b.trade.tradedAt <= sell.trade.tradedAt;
+        return true;
+      });
+      if (buyMatch) { usedBuyIds.add(buyMatch.trade.id); usedSellIds.add(sell.trade.id); }
+    }
+
+    return usedBuyIds;
+  }
+
   private pushMatch(
     matched: any[],
     buy: any,

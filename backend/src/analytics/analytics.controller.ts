@@ -120,6 +120,13 @@ export class AnalyticsController {
     });
   }
 
+  @Get('inventory')
+  async getInventory(
+    @Query('platform') platform: string = 'ALL',
+  ) {
+    return this.analyticsService.getInventory(platform as any);
+  }
+
   @Get('sync-status')
   async getSyncStatus() {
     return this.analyticsService.getSyncStatus();

@@ -25,6 +25,7 @@ import {
   fetchProfit,
   toggleTradeHidden,
   bulkSetHidden,
+  fetchInventory,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
@@ -35,7 +36,7 @@ import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { isAuthenticated, removeToken } from '@/lib/auth';
 
-type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_buy' | 'market_sell' | 'hidden';
+type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inv_csfloat' | 'inv_market' | 'hidden';
 
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -64,12 +65,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [profitEntries, setProfitEntries] = useState<ProfitEntry[]>([]);
   const [hiddenPurchases, setHiddenPurchases] = useState<TradeItem[]>([]);
   const [hiddenSales, setHiddenSales] = useState<TradeItem[]>([]);
+  const [inventory, setInventory] = useState<TradeItem[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = { period, platform };
-      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells] =
+      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData] =
         await Promise.all([
           fetchSummary(params),
           fetchPurchases(params),
@@ -77,6 +79,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           fetchProfit(params),
           fetchPurchases({ ...params, hidden: true }),
           fetchSales({ ...params, hidden: true }),
+          fetchInventory({ platform }),
         ]);
       setSummary(summaryData);
       setPurchases(purchasesData);
@@ -84,6 +87,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       setProfitEntries(profitData);
       setHiddenPurchases(hiddenBuys);
       setHiddenSales(hiddenSells);
+      setInventory(inventoryData);
     } catch (error) {
       console.error('Failed to load analytics data:', error);
     } finally {
@@ -118,12 +122,16 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const csfloatSells = sales.filter((t) => t.platformSource === 'CSFLOAT');
   const marketSells = sales.filter((t) => t.platformSource === 'MARKET_CSGO');
   const hiddenAll = [...hiddenPurchases, ...hiddenSales];
+  const invCsfloat = inventory.filter((t) => t.platformSource === 'CSFLOAT');
+  const invMarket = inventory.filter((t) => t.platformSource === 'MARKET_CSGO');
 
   const tabs: { value: Tab; label: string; count: number }[] = [
     { value: 'overview', label: 'Общая стата', count: profitEntries.length },
     { value: 'csfloat_buy', label: 'CSFloat — Покупки', count: csfloatBuys.length },
     { value: 'csfloat_sell', label: 'CSFloat — Продажи', count: csfloatSells.length },
     { value: 'market_sell', label: 'Market.CSGO — Продажи', count: marketSells.length },
+    { value: 'inv_csfloat', label: 'Инвентарь CSFloat', count: invCsfloat.length },
+    { value: 'inv_market', label: 'Инвентарь MarketCSGO', count: invMarket.length },
     { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
   ];
 
@@ -295,6 +303,22 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     Продажи — Market.CSGO
                   </h2>
                   <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                </div>
+              )}
+              {tab === 'inv_csfloat' && (
+                <div>
+                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
+                    Инвентарь — CSFloat
+                  </h2>
+                  <TradesTable trades={invCsfloat} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                </div>
+              )}
+              {tab === 'inv_market' && (
+                <div>
+                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
+                    Инвентарь — Market.CSGO
+                  </h2>
+                  <TradesTable trades={invMarket} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
               {tab === 'hidden' && (

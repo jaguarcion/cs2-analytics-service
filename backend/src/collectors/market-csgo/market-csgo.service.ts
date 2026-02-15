@@ -357,6 +357,17 @@ export class MarketCsgoService {
         const classIdStr = trade.class_id ? String(trade.class_id) : undefined;
         const instanceIdStr = trade.instance_id ? String(trade.instance_id) : undefined;
 
+        // Construct update object conditionally to avoid overwriting existing IDs with null
+        const updateData: any = {
+            name: trade.market_hash_name,
+            wear,
+            floatValue,
+            imageUrl: trade.class_id ? imageUrl : undefined,
+        };
+        if (classIdStr) updateData.classId = classIdStr;
+        if (instanceIdStr) updateData.instanceId = instanceIdStr;
+        if (assetIdStr) updateData.assetId = assetIdStr;
+
         const item = await this.prisma.item.upsert({
           where: {
             platformSource_externalId: {
@@ -364,16 +375,7 @@ export class MarketCsgoService {
               externalId: trade.id,
             },
           },
-          update: {
-            name: trade.market_hash_name,
-            wear,
-            floatValue,
-            imageUrl: trade.class_id ? imageUrl : undefined,
-            // Only update IDs if they are present in the incoming data
-            ...(classIdStr && { classId: classIdStr }),
-            ...(instanceIdStr && { instanceId: instanceIdStr }),
-            ...(assetIdStr && { assetId: assetIdStr }),
-          },
+          update: updateData,
           create: {
             externalId: trade.id,
             platformSource: 'MARKET_CSGO',

@@ -1,16 +1,66 @@
 'use client';
 
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
+
+const PAGE_SIZE = 30;
+const TRADE_BAN_DAYS = 7;
+
+function getTradeHoldRemaining(tradedAt: string): string | null {
+  const tradeDate = new Date(tradedAt);
+  const banEnd = new Date(tradeDate.getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const diffMs = banEnd.getTime() - now.getTime();
+
+  if (diffMs <= 0) return 'Истёк';
+
+  const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
+  if (days > 0) return `~${days}д ${hours}ч`;
+  return `~${hours}ч`;
+}
 
 interface TradesTableProps {
   trades: TradeItem[];
   type: 'BUY' | 'SELL';
-  fxRate?: number | null; // USDT→RUB rate for conversion
+  fxRate?: number | null;
 }
 
 export default function TradesTable({ trades, type, fxRate }: TradesTableProps) {
-  const getItem = (t: TradeItem) => t.item;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  // Reset visible count when trades change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [trades]);
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, trades.length));
+  }, [trades.length]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && visibleCount < trades.length) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleCount, trades.length, loadMore]);
+
+  const visibleTrades = trades.slice(0, visibleCount);
+  const hasMore = visibleCount < trades.length;
 
   if (trades.length === 0) {
     return (
@@ -37,8 +87,8 @@ export default function TradesTable({ trades, type, fxRate }: TradesTableProps) 
           </tr>
         </thead>
         <tbody className="divide-y divide-dark-800">
-          {trades.map((trade) => {
-            const i = getItem(trade);
+          {visibleTrades.map((trade) => {
+            const i = trade.item;
             return (
               <tr
                 key={trade.id}
@@ -98,27 +148,34 @@ export default function TradesTable({ trades, type, fxRate }: TradesTableProps) 
                   </span>
                 </td>
                 <td className="py-3 pr-4">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      trade.status === 'COMPLETED'
-                        ? 'bg-accent-green/10 text-accent-green'
-                        : trade.status === 'TRADE_HOLD'
-                          ? 'bg-yellow-500/10 text-yellow-400'
-                          : trade.status === 'ACCEPTED'
-                            ? 'bg-blue-500/10 text-blue-400'
-                            : trade.status === 'CANCELLED'
-                              ? 'bg-accent-red/10 text-accent-red'
-                              : 'bg-accent-orange/10 text-accent-orange'
-                    }`}
-                  >
-                    {{
-                      COMPLETED: type === 'SELL' ? 'Продано' : 'Куплено',
-                      TRADE_HOLD: 'Трейд-бан',
-                      ACCEPTED: 'В процессе',
-                      PENDING: type === 'SELL' ? 'В продаже' : 'Ожидание',
-                      CANCELLED: 'Отменён',
-                    }[trade.status] || trade.status}
-                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        trade.status === 'COMPLETED'
+                          ? 'bg-accent-green/10 text-accent-green'
+                          : trade.status === 'TRADE_HOLD'
+                            ? 'bg-yellow-500/10 text-yellow-400'
+                            : trade.status === 'ACCEPTED'
+                              ? 'bg-blue-500/10 text-blue-400'
+                              : trade.status === 'CANCELLED'
+                                ? 'bg-accent-red/10 text-accent-red'
+                                : 'bg-accent-orange/10 text-accent-orange'
+                      }`}
+                    >
+                      {{
+                        COMPLETED: type === 'SELL' ? 'Продано' : 'Куплено',
+                        TRADE_HOLD: 'Трейд-бан',
+                        ACCEPTED: 'В процессе',
+                        PENDING: type === 'SELL' ? 'В продаже' : 'Ожидание',
+                        CANCELLED: 'Отменён',
+                      }[trade.status] || trade.status}
+                    </span>
+                    {trade.status === 'TRADE_HOLD' && trade.tradedAt && (
+                      <span className="text-[10px] text-yellow-500/70">
+                        {getTradeHoldRemaining(trade.tradedAt)}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-3 text-dark-400">
                   {formatDate(trade.tradedAt)}
@@ -128,6 +185,19 @@ export default function TradesTable({ trades, type, fxRate }: TradesTableProps) 
           })}
         </tbody>
       </table>
+
+      {/* Infinite scroll loader */}
+      <div ref={loaderRef} className="py-4 text-center">
+        {hasMore ? (
+          <span className="text-xs text-dark-500">
+            Показано {visibleCount} из {trades.length} — скролльте вниз
+          </span>
+        ) : trades.length > PAGE_SIZE ? (
+          <span className="text-xs text-dark-500">
+            Все {trades.length} записей загружены
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

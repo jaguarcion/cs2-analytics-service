@@ -133,6 +133,33 @@ export class MarketCsgoService {
     }
   }
 
+  async fetchFloatFromInspect(assetId: string, classId: string, instanceId: string): Promise<number | null> {
+    try {
+      // Build Steam inspect link
+      // Format: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20M{classId}A{assetId}D{instanceId}
+      const inspectUrl = `steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20M${classId}A${assetId}D${instanceId || '0'}`;
+
+      // Use CSFloat inspect API to get float
+      const response = await axios.get(
+        `https://csfloat.com/api/v1/inspect`,
+        {
+          params: { url: inspectUrl },
+          timeout: 10000,
+        },
+      );
+
+      const float = response.data?.iteminfo?.floatvalue;
+      if (float !== undefined && float !== null) {
+        this.logger.debug(`Got float ${float} for asset ${assetId}`);
+        return parseFloat(float);
+      }
+      return null;
+    } catch (error) {
+      this.logger.warn(`Failed to fetch float for asset ${assetId}: ${error.message}`);
+      return null;
+    }
+  }
+
   async fetchWithdrawRate(): Promise<WithdrawRate | null> {
     // 1. Get balance from Market.CSGO
     try {
@@ -203,6 +230,19 @@ export class MarketCsgoService {
 
         const wear = parseWearFromName(trade.market_hash_name);
 
+        // Try to fetch float from inspect API if not provided by Market.CSGO
+        let floatValue = trade.float || null;
+        if (!floatValue && trade.asset_id && trade.class_id) {
+          const fetchedFloat = await this.fetchFloatFromInspect(
+            trade.asset_id,
+            trade.class_id,
+            trade.instance_id || '0',
+          );
+          if (fetchedFloat !== null) {
+            floatValue = fetchedFloat;
+          }
+        }
+
         const item = await this.prisma.item.upsert({
           where: {
             platformSource_externalId: {
@@ -213,7 +253,7 @@ export class MarketCsgoService {
           update: {
             name: trade.market_hash_name,
             wear,
-            floatValue: trade.float || null,
+            floatValue,
             imageUrl: trade.class_id ? imageUrl : null,
           },
           create: {
@@ -221,7 +261,7 @@ export class MarketCsgoService {
             platformSource: 'MARKET_CSGO',
             name: trade.market_hash_name,
             wear,
-            floatValue: trade.float || null,
+            floatValue,
             imageUrl: trade.class_id ? imageUrl : null,
           },
         });

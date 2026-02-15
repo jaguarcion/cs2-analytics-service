@@ -54,6 +54,8 @@ export class MarketTradesProcessor extends WorkerHost {
     this.logger.log(`Processing Market.CSGO trades sync job ${job.id}`);
     try {
       await this.marketCsgoService.syncTrades();
+      // After sync, try to fetch missing floats
+      await this.marketCsgoService.updateMissingFloats();
     } catch (error) {
       this.logger.error(`Market.CSGO trades sync failed: ${error.message}`);
       throw error;

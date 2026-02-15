@@ -35,6 +35,8 @@ model Item {
   wear            String?        @db.VarChar(64)
   floatValue      Float?         @map("float_value")
   assetId         String?        @map("asset_id") @db.VarChar(255)
+  classId         String?        @map("class_id") @db.VarChar(64)
+  instanceId      String?        @map("instance_id") @db.VarChar(64)
   imageUrl        String?        @map("image_url") @db.Text
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")

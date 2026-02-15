@@ -193,6 +193,67 @@ export class MarketCsgoService {
     return floatValue;
   }
 
+  async updateMissingFloats(limit = 50): Promise<number> {
+    this.logger.log(`Checking for items with missing float values (limit: ${limit})...`);
+    
+    // Find items from Market.CSGO that have no float value but have classId and assetId
+    const items = await this.prisma.item.findMany({
+      where: {
+        platformSource: 'MARKET_CSGO',
+        floatValue: null,
+        assetId: { not: null },
+        classId: { not: null },
+      },
+      take: limit,
+      orderBy: { updatedAt: 'desc' }, // prioritize recently updated items
+    });
+
+    if (items.length === 0) {
+      this.logger.log('No items found with missing float values.');
+      return 0;
+    }
+
+    this.logger.log(`Found ${items.length} items with missing float. Fetching...`);
+
+    let updatedCount = 0;
+    // Process in chunks of 5 to avoid rate limits
+    const chunkSize = 5;
+    for (let i = 0; i < items.length; i += chunkSize) {
+      const chunk = items.slice(i, i + chunkSize);
+      
+      const results = await Promise.allSettled(chunk.map(async (item) => {
+        // Construct partial trade object for fetchFloatForTrade
+        const trade = {
+           asset_id: item.assetId,
+           class_id: item.classId,
+           instance_id: item.instanceId || '0',
+        } as MarketTrade;
+        
+        const floatValue = await this.fetchFloatForTrade(trade);
+        
+        if (floatValue !== null) {
+          await this.prisma.item.update({
+            where: { id: item.id },
+            data: { floatValue },
+          });
+          return true;
+        }
+        return false;
+      }));
+
+      const successCount = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+      updatedCount += successCount;
+      
+      // Small delay between chunks to be nice to APIs
+      if (i + chunkSize < items.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    this.logger.log(`Updated float values for ${updatedCount} items.`);
+    return updatedCount;
+  }
+
   async fetchWithdrawRate(): Promise<WithdrawRate | null> {
     // 1. Get balance from Market.CSGO
     try {
@@ -263,14 +324,8 @@ export class MarketCsgoService {
 
         const wear = parseWearFromName(trade.market_hash_name);
 
-        // Try to fetch float via inspect APIs if not provided by Market.CSGO
+        // Try to use float from Market.CSGO if available
         let floatValue = trade.float || null;
-        if (!floatValue) {
-          const fetchedFloat = await this.fetchFloatForTrade(trade);
-          if (fetchedFloat !== null) {
-            floatValue = fetchedFloat;
-          }
-        }
 
         const item = await this.prisma.item.upsert({
           where: {
@@ -284,6 +339,8 @@ export class MarketCsgoService {
             wear,
             floatValue,
             imageUrl: trade.class_id ? imageUrl : null,
+            classId: trade.class_id || null,
+            instanceId: trade.instance_id || null,
           },
           create: {
             externalId: trade.id,
@@ -292,6 +349,8 @@ export class MarketCsgoService {
             wear,
             floatValue,
             imageUrl: trade.class_id ? imageUrl : null,
+            classId: trade.class_id || null,
+            instanceId: trade.instance_id || null,
           },
         });
 

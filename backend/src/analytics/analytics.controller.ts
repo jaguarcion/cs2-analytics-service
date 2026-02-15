@@ -99,6 +99,27 @@ export class AnalyticsController {
     });
   }
 
+  @Get('dashboard-stats')
+  async getDashboardStats(
+    @Query('period') period: string = 'month',
+    @Query('platform') platform: string = 'ALL',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    let dates: { from: Date; to: Date };
+
+    if (from && to) {
+      dates = { from: new Date(from), to: new Date(to) };
+    } else {
+      dates = this.analyticsService.getPeriodDates(period);
+    }
+
+    return this.analyticsService.getDashboardStats({
+      ...dates,
+      platform: platform as any,
+    });
+  }
+
   @Get('sync-status')
   async getSyncStatus() {
     return this.analyticsService.getSyncStatus();

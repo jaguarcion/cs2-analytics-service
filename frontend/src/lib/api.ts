@@ -117,6 +117,24 @@ export async function toggleTradeHidden(tradeId: string): Promise<{ id: string; 
   return data;
 }
 
+export interface DashboardStats {
+  onSaleCount: number;
+  purchasesCount: number;
+  purchasesTotal: number;
+  salesCount: number;
+  salesTotal: number;
+  avgProfitPercent: number;
+  matchedCount: number;
+  totalProfit: number;
+  fxRate: number | null;
+  chart: { date: string; purchases: number; sales: number }[];
+}
+
+export async function fetchDashboardStats(params: QueryParams): Promise<DashboardStats> {
+  const { data } = await api.get('/analytics/dashboard-stats', { params });
+  return data;
+}
+
 export async function fetchProfit(params: QueryParams): Promise<ProfitEntry[]> {
   const { data } = await api.get('/analytics/profit', { params });
   return data;

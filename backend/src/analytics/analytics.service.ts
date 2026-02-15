@@ -177,6 +177,105 @@ export class AnalyticsService {
     });
   }
 
+  async getDashboardStats(filter: PeriodFilter) {
+    const platformFilter =
+      filter.platform && filter.platform !== 'ALL'
+        ? { platformSource: filter.platform as any }
+        : {};
+
+    // FX rate
+    const fxRate = await this.prisma.fxRate.findFirst({
+      where: { pair: 'USDT_RUB' },
+      orderBy: { fetchedAt: 'desc' },
+    });
+    const rubToUsd = fxRate && fxRate.rate > 0 ? 1 / fxRate.rate : 0;
+    const toUsd = (price: number, platform: string) =>
+      platform === 'MARKET_CSGO' ? price * rubToUsd : price;
+
+    // Items available for sale (PENDING sells = on sale)
+    const onSale = await this.prisma.trade.count({
+      where: { type: 'SELL', status: 'PENDING', hidden: false, ...platformFilter },
+    });
+
+    // Purchases in period
+    const purchases = await this.prisma.trade.findMany({
+      where: {
+        type: 'BUY',
+        hidden: false,
+        tradedAt: { gte: filter.from, lte: filter.to },
+        ...platformFilter,
+      },
+    });
+    const purchasesTotal = purchases.reduce(
+      (sum, t) => sum + toUsd(t.buyPrice || 0, t.platformSource),
+      0,
+    );
+
+    // Sales in period
+    const sales = await this.prisma.trade.findMany({
+      where: {
+        type: 'SELL',
+        hidden: false,
+        tradedAt: { gte: filter.from, lte: filter.to },
+        ...platformFilter,
+      },
+    });
+    const salesTotal = sales.reduce(
+      (sum, t) => sum + toUsd(t.sellPrice || 0, t.platformSource),
+      0,
+    );
+
+    // Avg profit %
+    const matchedTrades = await this.matcher.getMatchedTrades();
+    const filteredMatched = matchedTrades.filter((t) => {
+      const d = t.sellDate || t.buyDate;
+      if (!d) return true;
+      return d >= filter.from && d <= filter.to;
+    });
+    const totalBuy = filteredMatched.reduce((s, t) => s + t.buyPrice, 0);
+    const totalProfit = filteredMatched.reduce((s, t) => s + t.profit, 0);
+    const avgProfitPercent = totalBuy > 0 ? (totalProfit / totalBuy) * 100 : 0;
+
+    // Daily chart data
+    const dayMs = 24 * 60 * 60 * 1000;
+    const fromTime = filter.from.getTime();
+    const toTime = filter.to.getTime();
+    const days: { date: string; purchases: number; sales: number }[] = [];
+
+    for (let t = fromTime; t <= toTime; t += dayMs) {
+      const dayStart = new Date(t);
+      const dayEnd = new Date(t + dayMs - 1);
+      const dateStr = dayStart.toISOString().slice(0, 10);
+
+      const dayPurchases = purchases
+        .filter((p) => p.tradedAt && p.tradedAt >= dayStart && p.tradedAt <= dayEnd)
+        .reduce((s, p) => s + toUsd(p.buyPrice || 0, p.platformSource), 0);
+
+      const daySales = sales
+        .filter((s) => s.tradedAt && s.tradedAt >= dayStart && s.tradedAt <= dayEnd)
+        .reduce((s, t) => s + toUsd(t.sellPrice || 0, t.platformSource), 0);
+
+      days.push({
+        date: dateStr,
+        purchases: parseFloat(dayPurchases.toFixed(2)),
+        sales: parseFloat(daySales.toFixed(2)),
+      });
+    }
+
+    return {
+      onSaleCount: onSale,
+      purchasesCount: purchases.length,
+      purchasesTotal: parseFloat(purchasesTotal.toFixed(2)),
+      salesCount: sales.length,
+      salesTotal: parseFloat(salesTotal.toFixed(2)),
+      avgProfitPercent: parseFloat(avgProfitPercent.toFixed(2)),
+      matchedCount: filteredMatched.length,
+      totalProfit: parseFloat(totalProfit.toFixed(2)),
+      fxRate: fxRate ? fxRate.rate : null,
+      chart: days,
+    };
+  }
+
   async getSyncStatus() {
     const logs = await this.prisma.syncLog.findMany({
       orderBy: { createdAt: 'desc' },

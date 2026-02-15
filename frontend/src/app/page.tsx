@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Package,
   ShoppingCart,
@@ -9,6 +10,7 @@ import {
   ArrowDownUp,
   RefreshCw,
   LogOut,
+  BarChart3,
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import PeriodSelector from '@/components/PeriodSelector';
@@ -49,6 +51,7 @@ export default function DashboardPage() {
 }
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>('month');
   const [platform, setPlatform] = useState<Platform>('ALL');
   const [tab, setTab] = useState<Tab>('overview');
@@ -144,6 +147,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <RefreshCw
                   className={cn('h-4 w-4', loading && 'animate-spin')}
                 />
+              </button>
+              <button
+                onClick={() => router.push('/stats')}
+                className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-blue"
+                title="Статистика"
+              >
+                <BarChart3 className="h-4 w-4" />
               </button>
               <button
                 onClick={onLogout}

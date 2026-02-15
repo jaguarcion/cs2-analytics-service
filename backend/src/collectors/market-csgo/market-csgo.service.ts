@@ -383,9 +383,9 @@ export class MarketCsgoService {
             wear,
             floatValue,
             imageUrl: trade.class_id ? imageUrl : null,
-            classId: classIdStr,
-            instanceId: instanceIdStr,
-            assetId: assetIdStr,
+            classId: classIdStr || null,
+            instanceId: instanceIdStr || null,
+            assetId: assetIdStr || null,
           },
         });
 

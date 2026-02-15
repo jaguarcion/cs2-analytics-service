@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { EyeOff, Eye, Search, X, ChevronDown, Check } from 'lucide-react';
+import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
@@ -76,14 +76,36 @@ interface TradesTableProps {
   isHiddenView?: boolean;
 }
 
+type SortKey = 'name' | 'wear' | 'float' | 'price' | 'platform' | 'status' | 'date';
+type SortDir = 'asc' | 'desc';
+
 export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const loaderRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortKey(null); setSortDir('asc'); }
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-30" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="ml-1 inline h-3 w-3 text-accent-blue" />
+      : <ArrowDown className="ml-1 inline h-3 w-3 text-accent-blue" />;
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -118,8 +140,28 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
     if (itemTypeFilter !== 'all') {
       result = result.filter((t) => getItemType(t.item?.name || '') === itemTypeFilter);
     }
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        let cmp = 0;
+        switch (sortKey) {
+          case 'name':     cmp = (a.item?.name || '').localeCompare(b.item?.name || ''); break;
+          case 'wear':     cmp = (a.item?.wear || '').localeCompare(b.item?.wear || ''); break;
+          case 'float':    cmp = (a.item?.floatValue ?? 0) - (b.item?.floatValue ?? 0); break;
+          case 'price': {
+            const pa = type === 'BUY' ? (a.buyPrice || 0) : (a.sellPrice || 0);
+            const pb = type === 'BUY' ? (b.buyPrice || 0) : (b.sellPrice || 0);
+            cmp = pa - pb;
+            break;
+          }
+          case 'platform': cmp = a.platformSource.localeCompare(b.platformSource); break;
+          case 'status':   cmp = a.status.localeCompare(b.status); break;
+          case 'date':     cmp = new Date(a.tradedAt || 0).getTime() - new Date(b.tradedAt || 0).getTime(); break;
+        }
+        return sortDir === 'desc' ? -cmp : cmp;
+      });
+    }
     return result;
-  }, [trades, search, itemTypeFilter]);
+  }, [trades, search, itemTypeFilter, sortKey, sortDir, type]);
 
   // Reset visible count & selection when filters change
   useEffect(() => {
@@ -292,15 +334,15 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   </button>
                 </th>
               )}
-              <th className="pb-3 pr-4 font-medium">Предмет</th>
-              <th className="pb-3 pr-4 font-medium">Wear</th>
-              <th className="pb-3 pr-4 font-medium">Float</th>
-              <th className="pb-3 pr-4 font-medium">
-                {type === 'BUY' ? 'Цена покупки' : 'Цена продажи'}
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('name')}>Предмет<SortIcon col="name" /></th>
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('wear')}>Wear<SortIcon col="wear" /></th>
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('float')}>Float<SortIcon col="float" /></th>
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('price')}>
+                {type === 'BUY' ? 'Цена покупки' : 'Цена продажи'}<SortIcon col="price" />
               </th>
-              <th className="pb-3 pr-4 font-medium">Платформа</th>
-              <th className="pb-3 pr-4 font-medium">Статус</th>
-              <th className="pb-3 pr-4 font-medium">Дата</th>
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('platform')}>Платформа<SortIcon col="platform" /></th>
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('status')}>Статус<SortIcon col="status" /></th>
+              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hover:text-dark-200" onClick={() => toggleSort('date')}>Дата<SortIcon col="date" /></th>
               {onToggleHide && <th className="pb-3 w-10"></th>}
             </tr>
           </thead>

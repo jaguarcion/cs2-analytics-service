@@ -229,14 +229,21 @@ export class MarketCsgoService {
            instance_id: item.instanceId || '0',
         } as MarketTrade;
         
-        const floatValue = await this.fetchFloatForTrade(trade);
-        
-        if (floatValue !== null) {
-          await this.prisma.item.update({
-            where: { id: item.id },
-            data: { floatValue },
-          });
-          return true;
+        try {
+            const floatValue = await this.fetchFloatForTrade(trade);
+            
+            if (floatValue !== null) {
+              await this.prisma.item.update({
+                where: { id: item.id },
+                data: { floatValue },
+              });
+              this.logger.log(`Updated float for item ${item.name} (${item.externalId}): ${floatValue}`);
+              return true;
+            } else {
+                this.logger.warn(`Failed to fetch float for item ${item.name} (${item.externalId})`);
+            }
+        } catch (e) {
+            this.logger.error(`Error fetching float for item ${item.name}: ${e.message}`);
         }
         return false;
       }));
@@ -356,9 +363,10 @@ export class MarketCsgoService {
             name: trade.market_hash_name,
             wear,
             floatValue,
-            imageUrl: trade.class_id ? imageUrl : null,
-            classId: trade.class_id || null,
-            instanceId: trade.instance_id || null,
+            imageUrl: trade.class_id ? imageUrl : undefined,
+            classId: trade.class_id || undefined,
+            instanceId: trade.instance_id || undefined,
+            assetId: trade.asset_id || undefined,
           },
           create: {
             externalId: trade.id,

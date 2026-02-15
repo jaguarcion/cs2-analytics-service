@@ -4,26 +4,36 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
+# Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-COPY prisma ./prisma
+# Copy source code
+COPY . .
+
+# Generate Prisma client
 RUN npx prisma generate
 
-COPY . .
+# Build the application
 RUN npm run build
 
+# --- Runner Stage ---
 FROM node:20-alpine AS runner
 
 RUN apk add --no-cache openssl
 
 WORKDIR /app
 
+# Copy built assets and dependencies
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
 
+# Add debug script if it exists locally (optional, might fail if not in context, so ignore error)
+COPY check-db-connection.js ./check-db-connection.js
+
 EXPOSE 4001
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main"]
+# Debug: List dist folder to verify build, then run
+CMD ["sh", "-c", "echo 'Listing dist folder:' && ls -la dist && npx prisma db push --skip-generate && node dist/main"]

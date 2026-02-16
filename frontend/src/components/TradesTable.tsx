@@ -6,19 +6,12 @@ import { deleteManualItem, deleteTrade, type TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
 const PAGE_SIZE = 30;
-const TRADE_BAN_DAYS = 7;
 
 function getTradeHoldRemaining(tradedAt: string, tradeUnlockAt?: string | null): string | null {
+  if (!tradeUnlockAt) return null; // no data — don't show timer
+
   const now = new Date();
-  let banEnd: Date;
-
-  if (tradeUnlockAt) {
-    banEnd = new Date(tradeUnlockAt);
-  } else {
-    const tradeDate = new Date(tradedAt);
-    banEnd = new Date(tradeDate.getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000);
-  }
-
+  const banEnd = new Date(tradeUnlockAt);
   const diffMs = banEnd.getTime() - now.getTime();
 
   if (diffMs <= 0) return 'Истёк';
@@ -53,14 +46,8 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 }
 
 function getTradeBanRemainingMs(trade: TradeItem): number {
-  let banEnd: number;
-  if (trade.tradeUnlockAt) {
-    banEnd = new Date(trade.tradeUnlockAt).getTime();
-  } else if (trade.tradedAt) {
-    banEnd = new Date(trade.tradedAt).getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000;
-  } else {
-    return 0;
-  }
+  if (!trade.tradeUnlockAt) return 0;
+  const banEnd = new Date(trade.tradeUnlockAt).getTime();
   const diff = banEnd - Date.now();
   return diff > 0 ? diff : 0;
 }
@@ -69,9 +56,14 @@ function showTradeBan(trade: TradeItem): boolean {
   // Manual items marked as COMPLETED are considered instantly tradable
   if (trade.platformSource === 'MANUAL' && trade.status === 'COMPLETED') return false;
 
-  if (trade.status === 'TRADE_HOLD') return true;
-  if (trade.status === 'COMPLETED' && trade.tradedAt) {
-    const remaining = getTradeHoldRemaining(trade.tradedAt, trade.tradeUnlockAt);
+  if (trade.status === 'TRADE_HOLD') {
+    // Status says trade hold — always show badge
+    if (!trade.tradeUnlockAt) return true; // no date data, but status confirms it
+    const remaining = getTradeHoldRemaining(trade.tradedAt!, trade.tradeUnlockAt);
+    return remaining !== null && remaining !== 'Истёк';
+  }
+  if (trade.status === 'COMPLETED' && trade.tradeUnlockAt) {
+    const remaining = getTradeHoldRemaining(trade.tradedAt!, trade.tradeUnlockAt);
     return remaining !== null && remaining !== 'Истёк';
   }
   return false;
@@ -126,7 +118,7 @@ function loadVisibleColumns(): Set<ColumnId> {
       const arr = JSON.parse(raw) as ColumnId[];
       if (Array.isArray(arr) && arr.length > 0) return new Set(arr);
     }
-  } catch {}
+  } catch { }
   return new Set(DEFAULT_VISIBLE);
 }
 
@@ -232,9 +224,9 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
       result = [...result].sort((a, b) => {
         let cmp = 0;
         switch (sortKey) {
-          case 'name':     cmp = (a.item?.name || '').localeCompare(b.item?.name || ''); break;
-          case 'wear':     cmp = (a.item?.wear || '').localeCompare(b.item?.wear || ''); break;
-          case 'float':    cmp = (a.item?.floatValue ?? 0) - (b.item?.floatValue ?? 0); break;
+          case 'name': cmp = (a.item?.name || '').localeCompare(b.item?.name || ''); break;
+          case 'wear': cmp = (a.item?.wear || '').localeCompare(b.item?.wear || ''); break;
+          case 'float': cmp = (a.item?.floatValue ?? 0) - (b.item?.floatValue ?? 0); break;
           case 'price': {
             const pa = type === 'BUY' ? (a.buyPrice || 0) : (a.sellPrice || 0);
             const pb = type === 'BUY' ? (b.buyPrice || 0) : (b.sellPrice || 0);
@@ -247,7 +239,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
             cmp = pa.localeCompare(pb);
             break;
           }
-          case 'status':   cmp = a.status.localeCompare(b.status); break;
+          case 'status': cmp = a.status.localeCompare(b.status); break;
           case 'tradeban': {
             const ta = getTradeBanRemainingMs(a);
             const tb = getTradeBanRemainingMs(b);
@@ -257,7 +249,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
             else cmp = ta - tb;
             break;
           }
-          case 'date':     cmp = new Date(a.tradedAt || 0).getTime() - new Date(b.tradedAt || 0).getTime(); break;
+          case 'date': cmp = new Date(a.tradedAt || 0).getTime() - new Date(b.tradedAt || 0).getTime(); break;
         }
         return sortDir === 'desc' ? -cmp : cmp;
       });
@@ -361,9 +353,8 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
             <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-dark-700 bg-dark-900 shadow-xl">
               <button
                 onClick={() => { setItemTypeFilter('all'); setTypeDropdownOpen(false); }}
-                className={`flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-dark-700/50 ${
-                  itemTypeFilter === 'all' ? 'text-accent-blue' : 'text-dark-200'
-                }`}
+                className={`flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-dark-700/50 ${itemTypeFilter === 'all' ? 'text-accent-blue' : 'text-dark-200'
+                  }`}
               >
                 <span>Все типы</span>
                 <span className="text-xs text-dark-500">{trades.length}</span>
@@ -372,9 +363,8 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                 <button
                   key={label}
                   onClick={() => { setItemTypeFilter(label); setTypeDropdownOpen(false); }}
-                  className={`flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-dark-700/50 ${
-                    itemTypeFilter === label ? 'text-accent-blue' : 'text-dark-200'
-                  }`}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-dark-700/50 ${itemTypeFilter === label ? 'text-accent-blue' : 'text-dark-200'
+                    }`}
                 >
                   <span className="truncate pr-2">{label}</span>
                   <span className="text-xs text-dark-500">{count}</span>
@@ -403,11 +393,10 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-dark-200 hover:bg-dark-700/50"
                 >
                   <span
-                    className={`flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors ${
-                      visibleCols.has(id)
+                    className={`flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors ${visibleCols.has(id)
                         ? 'border-accent-blue bg-accent-blue text-white'
                         : 'border-dark-600'
-                    }`}
+                      }`}
                   >
                     {visibleCols.has(id) && <Check className="h-2.5 w-2.5" />}
                   </span>
@@ -436,11 +425,10 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                 onBulkHide(Array.from(selectedIds), !isHiddenView);
                 setSelectedIds(new Set());
               }}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                isHiddenView
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${isHiddenView
                   ? 'bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20'
                   : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
-              }`}
+                }`}
             >
               {isHiddenView ? 'Показать выбранные' : 'Скрыть выбранные'}
             </button>
@@ -457,13 +445,12 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                 <th className="pb-3 pr-2 w-8">
                   <button
                     onClick={toggleSelectAll}
-                    className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-                      allSelected
+                    className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${allSelected
                         ? 'border-accent-blue bg-accent-blue text-white'
                         : someSelected
                           ? 'border-accent-blue/50 bg-accent-blue/20'
                           : 'border-dark-600 hover:border-dark-500'
-                    }`}
+                      }`}
                   >
                     {allSelected && <Check className="h-3 w-3" />}
                     {someSelected && !allSelected && <div className="h-1.5 w-1.5 rounded-sm bg-accent-blue" />}
@@ -496,11 +483,10 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                     <td className="py-3 pr-2">
                       <button
                         onClick={() => toggleSelect(trade.id)}
-                        className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-                          isChecked
+                        className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${isChecked
                             ? 'border-accent-blue bg-accent-blue text-white'
                             : 'border-dark-600 hover:border-dark-500'
-                        }`}
+                          }`}
                       >
                         {isChecked && <Check className="h-3 w-3" />}
                       </button>
@@ -565,8 +551,8 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   {show('platform') && (
                     <td className="py-3 pr-4 whitespace-nowrap">
                       <span className="rounded-full bg-dark-700 px-2 py-0.5 text-xs font-medium text-dark-300">
-                        {trade.platformSource === 'MANUAL' && trade.customSource 
-                          ? trade.customSource 
+                        {trade.platformSource === 'MANUAL' && trade.customSource
+                          ? trade.customSource
                           : platformLabel(trade.platformSource)}
                       </span>
                     </td>
@@ -574,15 +560,14 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   {show('status') && (
                     <td className="py-3 pr-4 whitespace-nowrap">
                       <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          trade.status === 'COMPLETED'
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${trade.status === 'COMPLETED'
                             ? 'bg-accent-green/10 text-accent-green'
                             : trade.status === 'CANCELLED'
                               ? 'bg-accent-red/10 text-accent-red'
                               : trade.status === 'ACCEPTED'
                                 ? 'bg-blue-500/10 text-blue-400'
                                 : 'bg-accent-orange/10 text-accent-orange'
-                        }`}
+                          }`}
                       >
                         {getStatusLabel(trade.status, type, trade.platformSource)}
                       </span>

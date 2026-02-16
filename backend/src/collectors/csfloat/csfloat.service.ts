@@ -15,13 +15,18 @@ export interface CsfloatStallItem {
   price: number;
   created_at: string;
   state: string;
+  sold_at?: string;
+  verify_sale_at?: string;
   // Extended fields from API for trade hold detection
   trade?: {
     state?: string;
     contract_state?: string;
+    verify_at?: string;
   };
   contract?: {
     state?: string;
+    sold_at?: string;
+    verify_sale_at?: string;
   };
 }
 
@@ -269,7 +274,21 @@ export class CsfloatService {
         // Also create a SELL trade record for profit calculation
         // This makes stall items appear in the "CSFloat - Sales" tab
         const priceUsd = stallItem.price / 100;
-        
+
+        // Extract verify_sale_at from various possible locations in the API response
+        const verifySaleAt = stallItem.verify_sale_at
+          || stallItem.contract?.verify_sale_at
+          || stallItem.trade?.verify_at
+          || null;
+
+        // For sold items, use sold_at as the trade date; fallback to created_at (listing date)
+        const soldAt = stallItem.sold_at || stallItem.contract?.sold_at || null;
+        const tradedAt = isSold && soldAt
+          ? new Date(soldAt)
+          : new Date(stallItem.created_at);
+
+        const tradeUnlockAt = verifySaleAt ? new Date(verifySaleAt) : null;
+
         await this.prisma.trade.upsert({
           where: {
             platformSource_externalId: {
@@ -281,7 +300,8 @@ export class CsfloatService {
             sellPrice: priceUsd,
             commission: 0.02,
             status: tradeStatus,
-            tradedAt: new Date(stallItem.created_at),
+            tradedAt,
+            tradeUnlockAt,
           },
           create: {
             externalId: `stall_${stallItem.id}`,
@@ -291,7 +311,8 @@ export class CsfloatService {
             commission: 0.02,
             type: 'SELL',
             status: tradeStatus,
-            tradedAt: new Date(stallItem.created_at),
+            tradedAt,
+            tradeUnlockAt,
           },
         });
 

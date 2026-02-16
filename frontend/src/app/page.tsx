@@ -154,7 +154,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     { value: 'csfloat_buy', label: 'CSFloat Buy', count: csfloatBuys.length },
     { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
     { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
-    { value: 'third_party', label: 'Сторонние', count: thirdPartyItems.length },
+    { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
     { value: 'inventory', label: 'Инвентарь', count: inventory.length },
     { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
   ];
@@ -310,7 +310,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     <h2 className="text-lg font-semibold text-dark-100">
                       Сматченные сделки (Profit)
                     </h2>
-                    <button 
+                    <button
                       onClick={() => setIsAddSaleOpen(true)}
                       className="flex items-center gap-2 rounded-lg bg-accent-green/10 px-3 py-1.5 text-xs font-medium text-accent-green hover:bg-accent-green/20 transition-colors"
                     >
@@ -348,7 +348,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {tab === 'third_party' && (
                 <div>
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Сторонние площадки (Трейд-бан)
+                    Трейд-бан (ожидание)
                   </h2>
                   <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
@@ -373,7 +373,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
         </div>
       </main>
-      
+
       <AddItemModal isOpen={isAddItemOpen} onClose={() => setIsAddItemOpen(false)} onSuccess={loadData} />
       <AddSaleModal isOpen={isAddSaleOpen} onClose={() => setIsAddSaleOpen(false)} onSuccess={loadData} items={[...inventory, ...thirdPartyItems]} />
     </div>

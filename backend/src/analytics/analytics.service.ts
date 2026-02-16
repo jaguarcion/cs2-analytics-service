@@ -69,23 +69,22 @@ export class AnalyticsService {
     const toUsd = (price: number, platform: string) =>
       platform === 'MARKET_CSGO' ? price * rubToUsd : price;
 
-    // Inventory Value — from actual unsold inventory (BUY trades not matched to SELL)
-    const inventoryItems = await this.getInventory(
-      filter.platform && filter.platform !== 'ALL' ? filter.platform : 'ALL',
-    );
-    let inventoryValue = inventoryItems.reduce((sum, t) => {
+    // Inventory Value — ALL owned items (unsold BUY trades), including those in trade ban
+    const matchedBuyIds = await this.matcher.getMatchedBuyIds();
+    const allOwnedItems = await this.prisma.trade.findMany({
+      where: {
+        type: 'BUY',
+        hidden: false,
+        status: { in: ['COMPLETED', 'TRADE_HOLD'] },
+        ...platformFilter,
+      },
+    });
+    // Exclude matched (already sold) items
+    const unsoldItems = allOwnedItems.filter((t) => !matchedBuyIds.has(t.id));
+    let inventoryValue = unsoldItems.reduce((sum, t) => {
       return sum + toUsd(t.buyPrice || 0, t.platformSource);
     }, 0);
-    let inventoryCount = inventoryItems.length;
-
-    // Add Third-party items (Manual Trade Hold) to Inventory Value
-    // Only if filter allows MANUAL
-    if (!filter.platform || filter.platform === 'ALL' || filter.platform === 'MANUAL') {
-      const thirdParty = await this.getThirdPartyItems();
-      const thirdPartyValue = thirdParty.reduce((sum, item) => sum + (item.buyPrice || 0), 0);
-      inventoryValue += thirdPartyValue;
-      inventoryCount += thirdParty.length;
-    }
+    let inventoryCount = unsoldItems.length;
 
     // Purchases (BUY trades)
     const purchases = await this.prisma.trade.findMany({
@@ -327,29 +326,37 @@ export class AnalyticsService {
   async getThirdPartyItems() {
     const now = Date.now();
 
+    // Get matched buy IDs to exclude already-sold items
+    const matchedBuyIds = await this.matcher.getMatchedBuyIds();
+
+    // Get ALL BUY trades with trade hold status (any platform)
     const buyTrades = await this.prisma.trade.findMany({
       where: {
         type: 'BUY',
         hidden: false,
-        platformSource: 'MANUAL',
         status: { in: ['COMPLETED', 'TRADE_HOLD'] },
       },
       include: { item: true },
       orderBy: { tradedAt: 'desc' },
     });
 
-    // Filter: Trade ban active (only items with tradeUnlockAt still in ban)
+    // Filter: unsold items with active trade ban
     return buyTrades.filter((t) => {
-      if (!t.tradedAt) return false;
+      // Skip matched trades (already sold)
+      if (matchedBuyIds.has(t.id)) return false;
 
-      // If manually set to COMPLETED, it's not banned
-      if (t.status === 'COMPLETED') return false;
+      // Manual COMPLETED items are considered instantly tradable → not banned
+      if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return false;
 
+      // TRADE_HOLD status without tradeUnlockAt → show as banned (no date data)
+      if (t.status === 'TRADE_HOLD' && !t.tradeUnlockAt) return true;
+
+      // Active trade ban via tradeUnlockAt
       if (t.tradeUnlockAt) {
         return t.tradeUnlockAt.getTime() > now;
       }
 
-      // No tradeUnlockAt = no ban data, consider not banned
+      // No ban data → not banned (will appear in Inventory)
       return false;
     });
   }

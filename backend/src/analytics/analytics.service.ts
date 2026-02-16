@@ -28,7 +28,7 @@ export class AnalyticsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly matcher: MatcherService,
-  ) {}
+  ) { }
 
   getPeriodDates(period: string): { from: Date; to: Date } {
     const to = dayjs().endOf('day').toDate();
@@ -69,33 +69,29 @@ export class AnalyticsService {
     const toUsd = (price: number, platform: string) =>
       platform === 'MARKET_CSGO' ? price * rubToUsd : price;
 
-    // Inventory Value — deduplicated
-    const inventory = await this.matcher.getDeduplicatedInventory();
-    const filteredInventory =
-      filter.platform && filter.platform !== 'ALL'
-        ? inventory.filter((i) => i.platformSource === filter.platform)
-        : inventory;
-
-    let inventoryValue = filteredInventory.reduce((sum, item) => {
-      const price = item.listings?.[0]?.price || 0;
-      return sum + toUsd(price, item.platformSource);
+    // Inventory Value — from actual unsold inventory (BUY trades not matched to SELL)
+    const inventoryItems = await this.getInventory(
+      filter.platform && filter.platform !== 'ALL' ? filter.platform : 'ALL',
+    );
+    let inventoryValue = inventoryItems.reduce((sum, t) => {
+      return sum + toUsd(t.buyPrice || 0, t.platformSource);
     }, 0);
-    
-    let inventoryCount = filteredInventory.length;
+    let inventoryCount = inventoryItems.length;
 
     // Add Third-party items (Manual Trade Hold) to Inventory Value
     // Only if filter allows MANUAL
     if (!filter.platform || filter.platform === 'ALL' || filter.platform === 'MANUAL') {
-        const thirdParty = await this.getThirdPartyItems();
-        const thirdPartyValue = thirdParty.reduce((sum, item) => sum + (item.buyPrice || 0), 0);
-        inventoryValue += thirdPartyValue;
-        inventoryCount += thirdParty.length;
+      const thirdParty = await this.getThirdPartyItems();
+      const thirdPartyValue = thirdParty.reduce((sum, item) => sum + (item.buyPrice || 0), 0);
+      inventoryValue += thirdPartyValue;
+      inventoryCount += thirdParty.length;
     }
 
     // Purchases (BUY trades)
     const purchases = await this.prisma.trade.findMany({
       where: {
         type: 'BUY',
+        hidden: false,
         tradedAt: { gte: filter.from, lte: filter.to },
         ...platformFilter,
       },
@@ -109,6 +105,7 @@ export class AnalyticsService {
     const sales = await this.prisma.trade.findMany({
       where: {
         type: 'SELL',
+        hidden: false,
         tradedAt: { gte: filter.from, lte: filter.to },
         ...platformFilter,
       },
@@ -288,7 +285,6 @@ export class AnalyticsService {
   }
 
   async getInventory(platform?: 'CSFLOAT' | 'MARKET_CSGO' | 'MANUAL' | 'ALL') {
-    const TRADE_BAN_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     // Get all unmatched buy IDs
@@ -319,19 +315,16 @@ export class AnalyticsService {
       // Manual items override: if COMPLETED, ignore ban timer (treat as instantly tradable)
       if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return true;
 
-      // Skip if trade ban is still active
+      // Skip if trade ban is still active (only if we have tradeUnlockAt data)
       if (t.tradeUnlockAt) {
         if (t.tradeUnlockAt.getTime() > now) return false;
-      } else if (t.tradedAt) {
-        const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
-        if (banEnd > now) return false;
       }
+      // No tradeUnlockAt = consider tradable (no ban data available)
       return true;
     });
   }
 
   async getThirdPartyItems() {
-    const TRADE_BAN_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     const buyTrades = await this.prisma.trade.findMany({
@@ -345,10 +338,10 @@ export class AnalyticsService {
       orderBy: { tradedAt: 'desc' },
     });
 
-    // Filter: Trade ban active
+    // Filter: Trade ban active (only items with tradeUnlockAt still in ban)
     return buyTrades.filter((t) => {
       if (!t.tradedAt) return false;
-      
+
       // If manually set to COMPLETED, it's not banned
       if (t.status === 'COMPLETED') return false;
 
@@ -356,8 +349,8 @@ export class AnalyticsService {
         return t.tradeUnlockAt.getTime() > now;
       }
 
-      const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
-      return banEnd > now;
+      // No tradeUnlockAt = no ban data, consider not banned
+      return false;
     });
   }
 

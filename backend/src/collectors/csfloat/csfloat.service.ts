@@ -159,9 +159,9 @@ export class CsfloatService {
         // Delay between pages to avoid rate limiting
         await new Promise((r) => setTimeout(r, 1000));
 
-        // Safety cap — max 15 pages (1500 trades)
-        if (page > 15) {
-          this.logger.warn('CSFloat trades: reached page cap (15), stopping');
+        // Safety cap — max 100 pages (10000 trades)
+        if (page > 100) {
+          this.logger.warn('CSFloat trades: reached page cap (100), stopping');
           break;
         }
       }
@@ -227,11 +227,11 @@ export class CsfloatService {
         const isSold = stallItem.state === 'sold' || stallItem.contract?.state === 'sold';
         const tradeState = stallItem.trade?.state || '';
         const contractState = stallItem.contract?.state || stallItem.contract?.state || '';
-        
+
         // Determine listing status
         let listingStatus: 'ACTIVE' | 'SOLD' | 'CANCELLED' | 'DELISTED';
         let tradeStatus: 'PENDING' | 'COMPLETED' | 'TRADE_HOLD' | 'ACCEPTED' | 'CANCELLED';
-        
+
         if (isListed) {
           listingStatus = 'ACTIVE';
           tradeStatus = 'PENDING';
@@ -271,50 +271,8 @@ export class CsfloatService {
           },
         });
 
-        // Also create a SELL trade record for profit calculation
-        // This makes stall items appear in the "CSFloat - Sales" tab
-        const priceUsd = stallItem.price / 100;
-
-        // Extract verify_sale_at from various possible locations in the API response
-        const verifySaleAt = stallItem.verify_sale_at
-          || stallItem.contract?.verify_sale_at
-          || stallItem.trade?.verify_at
-          || null;
-
-        // For sold items, use sold_at as the trade date; fallback to created_at (listing date)
-        const soldAt = stallItem.sold_at || stallItem.contract?.sold_at || null;
-        const tradedAt = isSold && soldAt
-          ? new Date(soldAt)
-          : new Date(stallItem.created_at);
-
-        const tradeUnlockAt = verifySaleAt ? new Date(verifySaleAt) : null;
-
-        await this.prisma.trade.upsert({
-          where: {
-            platformSource_externalId: {
-              platformSource: 'CSFLOAT',
-              externalId: `stall_${stallItem.id}`,
-            },
-          },
-          update: {
-            sellPrice: priceUsd,
-            commission: 0.02,
-            status: tradeStatus,
-            tradedAt,
-            tradeUnlockAt,
-          },
-          create: {
-            externalId: `stall_${stallItem.id}`,
-            platformSource: 'CSFLOAT',
-            itemId: item.id,
-            sellPrice: priceUsd,
-            commission: 0.02,
-            type: 'SELL',
-            status: tradeStatus,
-            tradedAt,
-            tradeUnlockAt,
-          },
-        });
+        // NOTE: Trade records are NOT created here to avoid duplicates.
+        // All SELL trades are handled exclusively by syncTrades() via /me/trades endpoint.
 
         itemsProcessed++;
       }

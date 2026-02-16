@@ -309,6 +309,14 @@ export class CsfloatService {
     let itemsProcessed = 0;
 
     try {
+      // Clean up legacy stall_ duplicates (from old syncStall logic that created Trade records)
+      const stallCleanup = await this.prisma.trade.deleteMany({
+        where: { externalId: { startsWith: 'stall_' }, platformSource: 'CSFLOAT' },
+      });
+      if (stallCleanup.count > 0) {
+        this.logger.log(`Cleaned up ${stallCleanup.count} legacy stall_ trade duplicates`);
+      }
+
       const trades = await this.fetchTrades();
 
       for (const trade of trades) {

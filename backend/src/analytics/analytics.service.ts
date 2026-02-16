@@ -306,19 +306,21 @@ export class AnalyticsService {
       orderBy: { tradedAt: 'desc' },
     });
 
-    // Filter: not matched, trade ban expired
+    // Filter: not matched, not in active trade ban
     return buyTrades.filter((t) => {
       // Skip matched trades (already sold)
       if (matchedBuyIds.has(t.id)) return false;
 
-      // Manual items override: if COMPLETED, ignore ban timer (treat as instantly tradable)
-      if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return true;
-
-      // Skip if trade ban is still active (only if we have tradeUnlockAt data)
-      if (t.tradeUnlockAt) {
-        if (t.tradeUnlockAt.getTime() > now) return false;
+      // TRADE_HOLD status = always in ban → goes to "Трейд-бан" tab
+      if (t.status === 'TRADE_HOLD') {
+        // Exception: if tradeUnlockAt exists and has expired, consider tradable
+        if (t.tradeUnlockAt && t.tradeUnlockAt.getTime() <= now) return true;
+        return false;
       }
-      // No tradeUnlockAt = consider tradable (no ban data available)
+
+      // COMPLETED: check if tradeUnlockAt is still active
+      if (t.tradeUnlockAt && t.tradeUnlockAt.getTime() > now) return false;
+
       return true;
     });
   }

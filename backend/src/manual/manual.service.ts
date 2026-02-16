@@ -165,4 +165,18 @@ export class ManualService {
         data,
     });
   }
+
+  async deleteItem(itemId: string) {
+    const item = await this.prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) throw new Error('Item not found');
+    
+    if (item.platformSource !== 'MANUAL') {
+        throw new Error('Cannot delete non-manual item');
+    }
+
+    await this.prisma.trade.deleteMany({ where: { itemId } });
+    await this.prisma.listing.deleteMany({ where: { itemId } });
+    
+    return this.prisma.item.delete({ where: { id: itemId } });
+  }
 }

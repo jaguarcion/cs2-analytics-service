@@ -25,4 +25,9 @@ export class ManualController {
   async deleteTrade(@Param('id') id: string) {
     return this.manualService.deleteTrade(id);
   }
+
+  @Delete('items/:id')
+  async deleteItem(@Param('id') id: string) {
+    return this.manualService.deleteItem(id);
+  }
 }

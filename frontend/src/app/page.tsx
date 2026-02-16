@@ -326,7 +326,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Покупки — CSFloat
                   </h2>
-                  <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                  <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
               )}
               {tab === 'csfloat_sell' && (
@@ -334,7 +334,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — CSFloat
                   </h2>
-                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
               )}
               {tab === 'market_sell' && (
@@ -342,7 +342,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — Market.CSGO
                   </h2>
-                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
               )}
               {tab === 'third_party' && (
@@ -350,7 +350,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Сторонние площадки (Трейд-бан)
                   </h2>
-                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
               )}
               {tab === 'inventory' && (
@@ -358,7 +358,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Инвентарь
                   </h2>
-                  <TradesTable trades={inventory} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                  <TradesTable trades={inventory} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
               )}
               {tab === 'hidden' && (
@@ -366,7 +366,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Скрытые предметы
                   </h2>
-                  <TradesTable trades={hiddenAll} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} isHiddenView />
+                  <TradesTable trades={hiddenAll} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} isHiddenView onReload={loadData} />
                 </div>
               )}
             </>

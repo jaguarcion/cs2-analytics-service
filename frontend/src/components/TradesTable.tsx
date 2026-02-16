@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from 'lucide-react';
-import type { TradeItem } from '@/lib/api';
+import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Trash2 } from 'lucide-react';
+import { deleteManualItem, deleteTrade, type TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
 const PAGE_SIZE = 30;
@@ -84,6 +84,7 @@ interface TradesTableProps {
   onToggleHide?: (tradeId: string) => void;
   onBulkHide?: (ids: string[], hidden: boolean) => void;
   isHiddenView?: boolean;
+  onReload?: () => void;
 }
 
 type SortKey = 'name' | 'wear' | 'float' | 'price' | 'platform' | 'status' | 'tradeban' | 'date';
@@ -120,7 +121,7 @@ function saveVisibleColumns(cols: Set<ColumnId>) {
   localStorage.setItem(LS_KEY, JSON.stringify(Array.from(cols)));
 }
 
-export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView }: TradesTableProps) {
+export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
@@ -133,6 +134,21 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
   const loaderRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const colsDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleDelete = async (trade: TradeItem) => {
+    if (!confirm(`Вы уверены, что хотите удалить ${trade.item?.name}?`)) return;
+    try {
+      if (type === 'BUY' && trade.platformSource === 'MANUAL' && trade.item?.id) {
+        await deleteManualItem(trade.item.id);
+      } else if (type === 'SELL' && trade.platformSource === 'MANUAL') {
+        await deleteTrade(trade.id);
+      }
+      onReload?.();
+    } catch (e) {
+      console.error(e);
+      alert('Не удалось удалить');
+    }
+  };
 
   const toggleColumn = (col: ColumnId) => {
     setVisibleCols((prev) => {
@@ -582,13 +598,24 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   )}
                   {onToggleHide && (
                     <td className="py-3">
-                      <button
-                        onClick={() => onToggleHide(trade.id)}
-                        className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-dark-300"
-                        title={isHiddenView ? 'Показать' : 'Скрыть'}
-                      >
-                        {isHiddenView ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => onToggleHide(trade.id)}
+                          className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-dark-300"
+                          title={isHiddenView ? 'Показать' : 'Скрыть'}
+                        >
+                          {isHiddenView ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </button>
+                        {trade.platformSource === 'MANUAL' && (
+                          <button
+                            onClick={() => handleDelete(trade)}
+                            className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-accent-red"
+                            title="Удалить"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>

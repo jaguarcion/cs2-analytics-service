@@ -219,4 +219,9 @@ export async function deleteTrade(id: string): Promise<any> {
   return res;
 }
 
+export async function deleteManualItem(id: string): Promise<any> {
+  const { data: res } = await api.delete(`/manual/items/${id}`);
+  return res;
+}
+
 export default api;

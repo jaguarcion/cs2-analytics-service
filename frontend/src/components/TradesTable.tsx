@@ -37,7 +37,7 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 
   switch (status) {
     case 'COMPLETED': return type === 'SELL' ? 'Продано' : 'Куплено';
-    case 'TRADE_HOLD': return type === 'SELL' ? 'В продаже' : 'Куплено';
+    case 'TRADE_HOLD': return type === 'SELL' ? 'Ожидание трейда' : 'Куплено (Бан)';
     case 'ACCEPTED': return 'В процессе';
     case 'PENDING': return type === 'SELL' ? 'В продаже' : 'Ожидание';
     case 'CANCELLED': return 'Отменён';

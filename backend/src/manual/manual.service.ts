@@ -137,4 +137,32 @@ export class ManualService {
           include: { trades: true }
       });
   }
+
+  async deleteTrade(tradeId: string) {
+    const trade = await this.prisma.trade.findUnique({ where: { id: tradeId } });
+    if (!trade) throw new Error('Trade not found');
+    return this.prisma.trade.delete({ where: { id: tradeId } });
+  }
+
+  async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string }) {
+    const trade = await this.prisma.trade.findUnique({ where: { id: tradeId } });
+    if (!trade) throw new Error('Trade not found');
+    
+    const data: any = {};
+    if (dto.price !== undefined) {
+        if (trade.type === 'BUY') data.buyPrice = dto.price;
+        else data.sellPrice = dto.price;
+    }
+    if (dto.date !== undefined) {
+        data.tradedAt = new Date(dto.date);
+    }
+    if (dto.customSource !== undefined) {
+        data.customSource = dto.customSource;
+    }
+    
+    return this.prisma.trade.update({
+        where: { id: tradeId },
+        data,
+    });
+  }
 }

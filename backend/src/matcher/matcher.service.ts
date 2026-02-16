@@ -110,6 +110,8 @@ export class MatcherService {
     const rubToUsd = await this.getRubToUsd();
 
     const matched: Array<{
+      sellTradeId: string;
+      buyTradeId: string;
       itemName: string;
       imageUrl: string | null;
       buyPrice: number;
@@ -120,6 +122,8 @@ export class MatcherService {
       profitPercent: number;
       buyPlatform: string;
       sellPlatform: string;
+      buyCustomSource: string | null;
+      sellCustomSource: string | null;
       buyDate: Date | null;
       sellDate: Date | null;
     }> = [];
@@ -308,6 +312,8 @@ export class MatcherService {
     const profitPercent = buyPriceUsd > 0 ? (profit / buyPriceUsd) * 100 : 0;
 
     matched.push({
+      sellTradeId: sell.id,
+      buyTradeId: buy.id,
       itemName: sell.item.name,
       imageUrl: sell.item.imageUrl || buy.item.imageUrl || null,
       buyPrice: parseFloat(buyPriceUsd.toFixed(2)),
@@ -318,6 +324,8 @@ export class MatcherService {
       profitPercent: parseFloat(profitPercent.toFixed(2)),
       buyPlatform: buy.platformSource,
       sellPlatform: sell.platformSource,
+      buyCustomSource: buy.customSource || null,
+      sellCustomSource: sell.customSource || null,
       buyDate: buy.tradedAt,
       sellDate: sell.tradedAt,
     });

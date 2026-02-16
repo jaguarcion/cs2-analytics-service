@@ -60,6 +60,8 @@ export interface TradeItem {
 }
 
 export interface ProfitEntry {
+  sellTradeId: string;
+  buyTradeId: string;
   itemName: string;
   imageUrl: string | null;
   buyPrice: number;
@@ -70,6 +72,8 @@ export interface ProfitEntry {
   profitPercent: number;
   buyPlatform: string;
   sellPlatform: string;
+  buyCustomSource: string | null;
+  sellCustomSource: string | null;
   buyDate: string | null;
   sellDate: string | null;
 }
@@ -202,6 +206,16 @@ export interface CreateManualSaleDto {
 
 export async function createManualSale(data: CreateManualSaleDto): Promise<any> {
   const { data: res } = await api.post('/manual/sales', data);
+  return res;
+}
+
+export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string }): Promise<any> {
+  const { data: res } = await api.put(`/manual/trades/${id}`, data);
+  return res;
+}
+
+export async function deleteTrade(id: string): Promise<any> {
+  const { data: res } = await api.delete(`/manual/trades/${id}`);
   return res;
 }
 

@@ -1,5 +1,5 @@
 
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, Delete, Param } from '@nestjs/common';
 import { ManualService, CreateManualItemDto, CreateManualSaleDto } from './manual.service';
 
 @Controller('api/manual')
@@ -14,5 +14,15 @@ export class ManualController {
   @Post('sales')
   async createSale(@Body() dto: CreateManualSaleDto) {
     return this.manualService.createSale(dto);
+  }
+
+  @Put('trades/:id')
+  async updateTrade(@Param('id') id: string, @Body() dto: { price?: number; date?: string; customSource?: string }) {
+    return this.manualService.updateTrade(id, dto);
+  }
+
+  @Delete('trades/:id')
+  async deleteTrade(@Param('id') id: string) {
+    return this.manualService.deleteTrade(id);
   }
 }

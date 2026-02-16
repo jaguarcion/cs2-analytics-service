@@ -318,7 +318,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       Добавить продажу
                     </button>
                   </div>
-                  <ProfitTable entries={profitEntries} />
+                  <ProfitTable entries={profitEntries} onReload={loadData} />
                 </div>
               )}
               {tab === 'csfloat_buy' && (

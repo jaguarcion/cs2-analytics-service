@@ -53,6 +53,9 @@ function getTradeBanRemainingMs(trade: TradeItem): number {
 }
 
 function showTradeBan(trade: TradeItem): boolean {
+  // Manual items marked as COMPLETED are considered instantly tradable
+  if (trade.platformSource === 'MANUAL' && trade.status === 'COMPLETED') return false;
+
   if (trade.status === 'TRADE_HOLD') return true;
   if (trade.status === 'COMPLETED' && trade.tradedAt) {
     const remaining = getTradeHoldRemaining(trade.tradedAt);
@@ -209,7 +212,12 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
             cmp = pa - pb;
             break;
           }
-          case 'platform': cmp = a.platformSource.localeCompare(b.platformSource); break;
+          case 'platform': {
+            const pa = a.platformSource === 'MANUAL' ? (a.customSource || 'Manual') : a.platformSource;
+            const pb = b.platformSource === 'MANUAL' ? (b.customSource || 'Manual') : b.platformSource;
+            cmp = pa.localeCompare(pb);
+            break;
+          }
           case 'status':   cmp = a.status.localeCompare(b.status); break;
           case 'tradeban': {
             const ta = getTradeBanRemainingMs(a);
@@ -528,7 +536,9 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   {show('platform') && (
                     <td className="py-3 pr-4 whitespace-nowrap">
                       <span className="rounded-full bg-dark-700 px-2 py-0.5 text-xs font-medium text-dark-300">
-                        {platformLabel(trade.platformSource)}
+                        {trade.platformSource === 'MANUAL' && trade.customSource 
+                          ? trade.customSource 
+                          : platformLabel(trade.platformSource)}
                       </span>
                     </td>
                   )}

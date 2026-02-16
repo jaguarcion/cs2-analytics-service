@@ -1,0 +1,140 @@
+
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { v4 as uuidv4 } from 'uuid';
+
+export interface CreateManualItemDto {
+  name: string;
+  wear?: string;
+  floatValue?: number;
+  buyPrice: number;
+  currency?: string;
+  customSource: string; // e.g. "Buff", "Waxpeer"
+  purchaseDate: string; // ISO date
+  tradeBanDate?: string; // ISO date, or null if tradable
+  status: string; // "Trade Ban", "Tradable", etc.
+}
+
+export interface CreateManualSaleDto {
+  itemId: string;
+  sellPrice: number;
+  currency?: string;
+  customSource: string; // e.g. "Buff"
+  saleDate: string; // ISO date
+}
+
+@Injectable()
+export class ManualService {
+  private readonly logger = new Logger(ManualService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createItem(dto: CreateManualItemDto) {
+    const externalId = `manual_${uuidv4()}`;
+    const purchaseDate = new Date(dto.purchaseDate);
+    const tradeBanDate = dto.tradeBanDate ? new Date(dto.tradeBanDate) : null;
+    
+    // Determine status
+    // If tradeBanDate > now, it's TRADE_HOLD. Else COMPLETED.
+    // Or use user provided status.
+    const now = new Date();
+    let tradeStatus: 'TRADE_HOLD' | 'COMPLETED' = 'COMPLETED';
+    
+    if (tradeBanDate && tradeBanDate > now) {
+      tradeStatus = 'TRADE_HOLD';
+    } else if (dto.status === 'Trade Ban') {
+        tradeStatus = 'TRADE_HOLD';
+    }
+
+    // Create Item
+    const item = await this.prisma.item.create({
+      data: {
+        externalId,
+        platformSource: 'MANUAL',
+        customSource: dto.customSource,
+        name: dto.name,
+        wear: dto.wear,
+        floatValue: dto.floatValue,
+        // imageUrl: try to find existing image for same name? Optional.
+      },
+    });
+
+    // Create BUY Trade
+    const trade = await this.prisma.trade.create({
+      data: {
+        externalId: `trade_buy_${externalId}`,
+        platformSource: 'MANUAL',
+        customSource: dto.customSource,
+        itemId: item.id,
+        buyPrice: dto.buyPrice,
+        type: 'BUY',
+        status: tradeStatus,
+        tradedAt: purchaseDate,
+        // If trade ban date is provided, maybe store it? 
+        // Prisma schema doesn't have tradeBanDate field on Trade.
+        // We rely on tradedAt + logic or status.
+        // But for manual items, user might want to see exact unlock date.
+        // For now, we rely on status.
+      },
+    });
+
+    // Create Listing (optional, to show it in inventory)
+    // Inventory logic usually checks listings or buy trades without sell trades.
+    // Let's create a listing so it appears consistent with other platforms if needed.
+    // But manual items might not be "listed" yet.
+    // However, MatcherService looks at listings for price? No, it looks at trades.
+    // Let's NOT create a listing for now, unless user says "Listed".
+    
+    return { item, trade };
+  }
+
+  async createSale(dto: CreateManualSaleDto) {
+    const item = await this.prisma.item.findUnique({
+      where: { id: dto.itemId },
+    });
+
+    if (!item) {
+      throw new Error('Item not found');
+    }
+
+    // Check if already sold
+    const existingSell = await this.prisma.trade.findFirst({
+      where: {
+        itemId: dto.itemId,
+        type: 'SELL',
+        status: { not: 'CANCELLED' },
+      },
+    });
+
+    if (existingSell) {
+      throw new Error('Item is already sold');
+    }
+
+    const saleDate = new Date(dto.saleDate);
+
+    // Create SELL Trade
+    const trade = await this.prisma.trade.create({
+      data: {
+        externalId: `trade_sell_${uuidv4()}`,
+        platformSource: 'MANUAL',
+        customSource: dto.customSource,
+        itemId: item.id,
+        sellPrice: dto.sellPrice,
+        commission: 0, // Manual sale commission? User didn't specify. Assume 0 or let user edit later.
+        type: 'SELL',
+        status: 'COMPLETED', // Sales are usually completed immediately if manual
+        tradedAt: saleDate,
+      },
+    });
+
+    return trade;
+  }
+  
+  async getManualItems() {
+      // Fetch all manual items
+      return this.prisma.item.findMany({
+          where: { platformSource: 'MANUAL' },
+          include: { trades: true }
+      });
+  }
+}

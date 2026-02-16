@@ -43,6 +43,7 @@ export interface TradeItem {
   id: string;
   externalId: string;
   platformSource: string;
+  customSource: string | null;
   buyPrice: number | null;
   sellPrice: number | null;
   commission: number | null;
@@ -84,7 +85,7 @@ export interface SyncLog {
 }
 
 export type Period = 'week' | 'month' | '3months' | 'custom';
-export type Platform = 'ALL' | 'CSFLOAT' | 'MARKET_CSGO';
+export type Platform = 'ALL' | 'CSFLOAT' | 'MARKET_CSGO' | 'MANUAL';
 
 interface QueryParams {
   period?: string;
@@ -169,6 +170,39 @@ export async function triggerSync(source: string): Promise<{ message: string }> 
   };
   const { data } = await api.post(endpoints[source] || '');
   return data;
+}
+
+export async function fetchThirdPartyItems(): Promise<TradeItem[]> {
+  const { data } = await api.get('/analytics/third-party');
+  return data;
+}
+
+export interface CreateManualItemDto {
+  name: string;
+  wear?: string;
+  floatValue?: number;
+  buyPrice: number;
+  customSource: string;
+  purchaseDate: string;
+  tradeBanDate?: string;
+  status: string;
+}
+
+export async function createManualItem(data: CreateManualItemDto): Promise<any> {
+  const { data: res } = await api.post('/manual/items', data);
+  return res;
+}
+
+export interface CreateManualSaleDto {
+  itemId: string;
+  sellPrice: number;
+  customSource: string;
+  saleDate: string;
+}
+
+export async function createManualSale(data: CreateManualSaleDto): Promise<any> {
+  const { data: res } = await api.post('/manual/sales', data);
+  return res;
 }
 
 export default api;

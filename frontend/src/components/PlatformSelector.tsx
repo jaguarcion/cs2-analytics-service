@@ -12,6 +12,7 @@ const platforms: { value: Platform; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'CSFLOAT', label: 'CSFloat' },
   { value: 'MARKET_CSGO', label: 'Market.CSGO' },
+  { value: 'MANUAL', label: 'Manual' },
 ];
 
 export default function PlatformSelector({ value, onChange }: PlatformSelectorProps) {

@@ -11,6 +11,8 @@ import {
   RefreshCw,
   LogOut,
   BarChart3,
+  Plus,
+  Coins,
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import PeriodSelector from '@/components/PeriodSelector';
@@ -18,6 +20,8 @@ import PlatformSelector from '@/components/PlatformSelector';
 import TradesTable from '@/components/TradesTable';
 import ProfitTable from '@/components/ProfitTable';
 import LoginForm from '@/components/LoginForm';
+import AddItemModal from '@/components/AddItemModal';
+import AddSaleModal from '@/components/AddSaleModal';
 import {
   fetchSummary,
   fetchPurchases,
@@ -26,6 +30,7 @@ import {
   toggleTradeHidden,
   bulkSetHidden,
   fetchInventory,
+  fetchThirdPartyItems,
   triggerFullSync,
   type AnalyticsSummary,
   type TradeItem,
@@ -37,7 +42,7 @@ import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { isAuthenticated, removeToken } from '@/lib/auth';
 
-type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inventory' | 'hidden';
+type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inventory' | 'hidden' | 'third_party';
 
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -67,14 +72,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [hiddenPurchases, setHiddenPurchases] = useState<TradeItem[]>([]);
   const [hiddenSales, setHiddenSales] = useState<TradeItem[]>([]);
   const [inventory, setInventory] = useState<TradeItem[]>([]);
+  const [thirdPartyItems, setThirdPartyItems] = useState<TradeItem[]>([]);
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAddItemOpen, setIsAddItemOpen] = useState(false);
+  const [isAddSaleOpen, setIsAddSaleOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = { period, platform };
-      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData] =
+      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData] =
         await Promise.all([
           fetchSummary(params),
           fetchPurchases(params),
@@ -83,6 +91,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           fetchPurchases({ ...params, hidden: true }),
           fetchSales({ ...params, hidden: true }),
           fetchInventory({ platform }),
+          fetchThirdPartyItems(),
         ]);
       setSummary(summaryData);
       setPurchases(purchasesData);
@@ -91,6 +100,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       setHiddenPurchases(hiddenBuys);
       setHiddenSales(hiddenSells);
       setInventory(inventoryData);
+      setThirdPartyItems(thirdPartyData);
     } catch (error) {
       console.error('Failed to load analytics data:', error);
     } finally {
@@ -144,6 +154,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     { value: 'csfloat_buy', label: 'CSFloat — Покупки', count: csfloatBuys.length },
     { value: 'csfloat_sell', label: 'CSFloat — Продажи', count: csfloatSells.length },
     { value: 'market_sell', label: 'Market.CSGO — Продажи', count: marketSells.length },
+    { value: 'third_party', label: 'Сторонние площадки', count: thirdPartyItems.length },
     { value: 'inventory', label: 'Инвентарь', count: inventory.length },
     { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
   ];
@@ -170,6 +181,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <div className="flex items-center gap-3">
               <PlatformSelector value={platform} onChange={setPlatform} />
               <PeriodSelector value={period} onChange={setPeriod} />
+              <button
+                onClick={() => setIsAddItemOpen(true)}
+                className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-green"
+                title="Добавить предмет"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
               <button
                 onClick={handleFullSync}
                 disabled={loading || isSyncing}
@@ -288,9 +306,18 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <>
               {tab === 'overview' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Сматченные сделки (Profit)
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-dark-100">
+                      Сматченные сделки (Profit)
+                    </h2>
+                    <button 
+                      onClick={() => setIsAddSaleOpen(true)}
+                      className="flex items-center gap-2 rounded-lg bg-accent-green/10 px-3 py-1.5 text-xs font-medium text-accent-green hover:bg-accent-green/20 transition-colors"
+                    >
+                      <Coins className="h-4 w-4" />
+                      Добавить продажу
+                    </button>
+                  </div>
                   <ProfitTable entries={profitEntries} />
                 </div>
               )}
@@ -318,6 +345,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
                 </div>
               )}
+              {tab === 'third_party' && (
+                <div>
+                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
+                    Сторонние площадки (Трейд-бан)
+                  </h2>
+                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} />
+                </div>
+              )}
               {tab === 'inventory' && (
                 <div>
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
@@ -338,6 +373,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
         </div>
       </main>
+      
+      <AddItemModal isOpen={isAddItemOpen} onClose={() => setIsAddItemOpen(false)} onSuccess={loadData} />
+      <AddSaleModal isOpen={isAddSaleOpen} onClose={() => setIsAddSaleOpen(false)} onSuccess={loadData} items={[...inventory, ...thirdPartyItems]} />
     </div>
   );
 }

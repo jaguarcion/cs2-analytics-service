@@ -18,7 +18,7 @@ export interface AnalyticsSummary {
 export interface PeriodFilter {
   from: Date;
   to: Date;
-  platform?: 'CSFLOAT' | 'MARKET_CSGO' | 'ALL';
+  platform?: 'CSFLOAT' | 'MARKET_CSGO' | 'MANUAL' | 'ALL';
 }
 
 @Injectable()
@@ -276,7 +276,7 @@ export class AnalyticsService {
     };
   }
 
-  async getInventory(platform?: 'CSFLOAT' | 'MARKET_CSGO' | 'ALL') {
+  async getInventory(platform?: 'CSFLOAT' | 'MARKET_CSGO' | 'MANUAL' | 'ALL') {
     const TRADE_BAN_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
@@ -304,12 +304,43 @@ export class AnalyticsService {
     return buyTrades.filter((t) => {
       // Skip matched trades (already sold)
       if (matchedBuyIds.has(t.id)) return false;
+
+      // Manual items override: if COMPLETED, ignore ban timer (treat as instantly tradable)
+      if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return true;
+
       // Skip if trade ban is still active
       if (t.tradedAt) {
         const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
         if (banEnd > now) return false;
       }
       return true;
+    });
+  }
+
+  async getThirdPartyItems() {
+    const TRADE_BAN_MS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const buyTrades = await this.prisma.trade.findMany({
+      where: {
+        type: 'BUY',
+        hidden: false,
+        platformSource: 'MANUAL',
+        status: { in: ['COMPLETED', 'TRADE_HOLD'] },
+      },
+      include: { item: true },
+      orderBy: { tradedAt: 'desc' },
+    });
+
+    // Filter: Trade ban active
+    return buyTrades.filter((t) => {
+      if (!t.tradedAt) return false;
+      
+      // If manually set to COMPLETED, it's not banned
+      if (t.status === 'COMPLETED') return false;
+
+      const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
+      return banEnd > now;
     });
   }
 

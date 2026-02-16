@@ -131,6 +131,11 @@ export class AnalyticsController {
     return this.analyticsService.getInventory(platform as any);
   }
 
+  @Get('third-party')
+  async getThirdPartyItems() {
+    return this.analyticsService.getThirdPartyItems();
+  }
+
   @Get('sync-status')
   async getSyncStatus() {
     return this.analyticsService.getSyncStatus();

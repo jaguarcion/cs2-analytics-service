@@ -10,6 +10,7 @@ import { MatcherModule } from './matcher/matcher.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SyncModule } from './sync/sync.module';
 import { AuthModule } from './auth/auth.module';
+import { ManualModule } from './manual/manual.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AuthModule } from './auth/auth.module';
     MatcherModule,
     AnalyticsModule,
     SyncModule,
+    ManualModule,
   ],
 })
 export class AppModule {}

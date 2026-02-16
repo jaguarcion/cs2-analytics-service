@@ -138,6 +138,22 @@ export class MatcherService {
       norm: this.normalizer.normalizeItem(s.item),
     }));
 
+    // --- Pass 0: Match by same Item ID (explicit link) ---
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      
+      const buyMatch = buyNorms.find(
+        (b) =>
+          !usedBuyIds.has(b.trade.id) &&
+          b.trade.item.id === sell.trade.item.id
+      );
+      if (buyMatch) {
+        usedBuyIds.add(buyMatch.trade.id);
+        usedSellIds.add(sell.trade.id);
+        this.pushMatch(matched, buyMatch.trade, sell.trade, rubToUsd);
+      }
+    }
+
     // --- Pass 1: Match by asset_id ---
     for (const sell of sellNorms) {
       if (usedSellIds.has(sell.trade.id)) continue;
@@ -229,6 +245,15 @@ export class MatcherService {
       trade: s,
       norm: this.normalizer.normalizeItem(s.item),
     }));
+
+    // Pass 0: same item ID
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      const buyMatch = buyNorms.find(
+        (b) => !usedBuyIds.has(b.trade.id) && b.trade.item.id === sell.trade.item.id
+      );
+      if (buyMatch) { usedBuyIds.add(buyMatch.trade.id); usedSellIds.add(sell.trade.id); }
+    }
 
     // Pass 1: asset_id
     for (const sell of sellNorms) {

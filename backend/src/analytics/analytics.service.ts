@@ -76,10 +76,21 @@ export class AnalyticsService {
         ? inventory.filter((i) => i.platformSource === filter.platform)
         : inventory;
 
-    const inventoryValue = filteredInventory.reduce((sum, item) => {
+    let inventoryValue = filteredInventory.reduce((sum, item) => {
       const price = item.listings?.[0]?.price || 0;
       return sum + toUsd(price, item.platformSource);
     }, 0);
+    
+    let inventoryCount = filteredInventory.length;
+
+    // Add Third-party items (Manual Trade Hold) to Inventory Value
+    // Only if filter allows MANUAL
+    if (!filter.platform || filter.platform === 'ALL' || filter.platform === 'MANUAL') {
+        const thirdParty = await this.getThirdPartyItems();
+        const thirdPartyValue = thirdParty.reduce((sum, item) => sum + (item.buyPrice || 0), 0);
+        inventoryValue += thirdPartyValue;
+        inventoryCount += thirdParty.length;
+    }
 
     // Purchases (BUY trades)
     const purchases = await this.prisma.trade.findMany({
@@ -121,7 +132,7 @@ export class AnalyticsService {
 
     return {
       inventoryValue: parseFloat(inventoryValue.toFixed(2)),
-      inventoryCount: filteredInventory.length,
+      inventoryCount: inventoryCount,
       totalPurchases: parseFloat(totalPurchases.toFixed(2)),
       purchasesCount: purchases.length,
       totalSales: parseFloat(totalSales.toFixed(2)),
@@ -309,7 +320,9 @@ export class AnalyticsService {
       if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return true;
 
       // Skip if trade ban is still active
-      if (t.tradedAt) {
+      if (t.tradeUnlockAt) {
+        if (t.tradeUnlockAt.getTime() > now) return false;
+      } else if (t.tradedAt) {
         const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
         if (banEnd > now) return false;
       }
@@ -338,6 +351,10 @@ export class AnalyticsService {
       
       // If manually set to COMPLETED, it's not banned
       if (t.status === 'COMPLETED') return false;
+
+      if (t.tradeUnlockAt) {
+        return t.tradeUnlockAt.getTime() > now;
+      }
 
       const banEnd = new Date(t.tradedAt).getTime() + TRADE_BAN_MS;
       return banEnd > now;

@@ -80,6 +80,7 @@ model Trade {
   sellPrice       Float?         @map("sell_price")
   commission      Float?         @default(0)
   status          TradeStatus    @default(PENDING)
+  tradeUnlockAt   DateTime?      @map("trade_unlock_at")
   type            String         @db.VarChar(10) // "BUY" or "SELL"
   hidden          Boolean        @default(false)
   tradedAt        DateTime?      @map("traded_at")

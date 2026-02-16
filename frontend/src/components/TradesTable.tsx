@@ -8,10 +8,17 @@ import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 const PAGE_SIZE = 30;
 const TRADE_BAN_DAYS = 7;
 
-function getTradeHoldRemaining(tradedAt: string): string | null {
-  const tradeDate = new Date(tradedAt);
-  const banEnd = new Date(tradeDate.getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000);
+function getTradeHoldRemaining(tradedAt: string, tradeUnlockAt?: string | null): string | null {
   const now = new Date();
+  let banEnd: Date;
+
+  if (tradeUnlockAt) {
+    banEnd = new Date(tradeUnlockAt);
+  } else {
+    const tradeDate = new Date(tradedAt);
+    banEnd = new Date(tradeDate.getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000);
+  }
+
   const diffMs = banEnd.getTime() - now.getTime();
 
   if (diffMs <= 0) return 'Истёк';
@@ -46,8 +53,14 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 }
 
 function getTradeBanRemainingMs(trade: TradeItem): number {
-  if (!trade.tradedAt) return 0;
-  const banEnd = new Date(trade.tradedAt).getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000;
+  let banEnd: number;
+  if (trade.tradeUnlockAt) {
+    banEnd = new Date(trade.tradeUnlockAt).getTime();
+  } else if (trade.tradedAt) {
+    banEnd = new Date(trade.tradedAt).getTime() + TRADE_BAN_DAYS * 24 * 60 * 60 * 1000;
+  } else {
+    return 0;
+  }
   const diff = banEnd - Date.now();
   return diff > 0 ? diff : 0;
 }
@@ -58,7 +71,7 @@ function showTradeBan(trade: TradeItem): boolean {
 
   if (trade.status === 'TRADE_HOLD') return true;
   if (trade.status === 'COMPLETED' && trade.tradedAt) {
-    const remaining = getTradeHoldRemaining(trade.tradedAt);
+    const remaining = getTradeHoldRemaining(trade.tradedAt, trade.tradeUnlockAt);
     return remaining !== null && remaining !== 'Истёк';
   }
   return false;
@@ -583,7 +596,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                             Трейд-бан
                           </span>
                           <span className="text-[10px] text-yellow-500/70">
-                            {getTradeHoldRemaining(trade.tradedAt)}
+                            {getTradeHoldRemaining(trade.tradedAt, trade.tradeUnlockAt)}
                           </span>
                         </div>
                       ) : (

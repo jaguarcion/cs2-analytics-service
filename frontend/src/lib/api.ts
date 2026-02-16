@@ -50,6 +50,7 @@ export interface TradeItem {
   type: string;
   status: string;
   tradedAt: string;
+  tradeUnlockAt?: string | null;
   item?: {
     id: string;
     name: string;

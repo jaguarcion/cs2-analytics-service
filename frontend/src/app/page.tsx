@@ -150,11 +150,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const hiddenAll = [...hiddenPurchases, ...hiddenSales];
 
   const tabs: { value: Tab; label: string; count: number }[] = [
-    { value: 'overview', label: 'Общая стата', count: profitEntries.length },
-    { value: 'csfloat_buy', label: 'CSFloat — Покупки', count: csfloatBuys.length },
-    { value: 'csfloat_sell', label: 'CSFloat — Продажи', count: csfloatSells.length },
-    { value: 'market_sell', label: 'Market.CSGO — Продажи', count: marketSells.length },
-    { value: 'third_party', label: 'Сторонние площадки', count: thirdPartyItems.length },
+    { value: 'overview', label: 'Обзор', count: profitEntries.length },
+    { value: 'csfloat_buy', label: 'CSFloat Buy', count: csfloatBuys.length },
+    { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
+    { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
+    { value: 'third_party', label: 'Сторонние', count: thirdPartyItems.length },
     { value: 'inventory', label: 'Инвентарь', count: inventory.length },
     { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
   ];
@@ -171,10 +171,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-dark-50">
-                  CS2 Skin Analytics
+                  CS2 Analytics
                 </h1>
                 <p className="text-xs text-dark-500">
-                  CSFloat + Market.CSGO
+                  CSFloat + Market
                 </p>
               </div>
             </div>
@@ -269,13 +269,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-dark-800">
+        <div className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-dark-800 scrollbar-hide">
           {tabs.map((t) => (
             <button
               key={t.value}
               onClick={() => setTab(t.value)}
               className={cn(
-                'flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-all border-b-2',
+                'flex items-center gap-2 whitespace-nowrap px-3 py-2 text-xs font-medium transition-all border-b-2',
                 tab === t.value
                   ? 'border-accent-blue text-accent-blue'
                   : 'border-transparent text-dark-500 hover:text-dark-300',

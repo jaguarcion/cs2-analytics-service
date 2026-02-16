@@ -29,6 +29,7 @@ export interface CsfloatTrade {
   id: string;
   state: string;
   created_at: string;
+  verify_sale_at?: string;
   price?: number;
   buyer_id?: string;
   seller_id?: string;
@@ -397,6 +398,7 @@ export class CsfloatService {
             type: tradeType,
             status: tradeStatus,
             tradedAt: createdAt ? new Date(createdAt) : new Date(),
+            tradeUnlockAt: trade.verify_sale_at ? new Date(trade.verify_sale_at) : null,
           },
           create: {
             externalId: trade.id,
@@ -408,6 +410,7 @@ export class CsfloatService {
             type: tradeType,
             status: tradeStatus,
             tradedAt: createdAt ? new Date(createdAt) : new Date(),
+            tradeUnlockAt: trade.verify_sale_at ? new Date(trade.verify_sale_at) : null,
           },
         });
 

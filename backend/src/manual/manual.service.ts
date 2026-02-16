@@ -27,23 +27,23 @@ export interface CreateManualSaleDto {
 export class ManualService {
   private readonly logger = new Logger(ManualService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createItem(dto: CreateManualItemDto) {
     const externalId = `manual_${uuidv4()}`;
     const purchaseDate = new Date(dto.purchaseDate);
     const tradeBanDate = dto.tradeBanDate ? new Date(dto.tradeBanDate) : null;
-    
+
     // Determine status
     // If tradeBanDate > now, it's TRADE_HOLD. Else COMPLETED.
     // Or use user provided status.
     const now = new Date();
     let tradeStatus: 'TRADE_HOLD' | 'COMPLETED' = 'COMPLETED';
-    
+
     if (tradeBanDate && tradeBanDate > now) {
       tradeStatus = 'TRADE_HOLD';
     } else if (dto.status === 'Trade Ban') {
-        tradeStatus = 'TRADE_HOLD';
+      tradeStatus = 'TRADE_HOLD';
     }
 
     // Create Item
@@ -59,6 +59,15 @@ export class ManualService {
       },
     });
 
+    // Compute tradeUnlockAt for trade ban timer
+    let tradeUnlockAt: Date | null = null;
+    if (tradeBanDate) {
+      tradeUnlockAt = tradeBanDate;
+    } else if (tradeStatus === 'TRADE_HOLD') {
+      // Default: 7-day Steam trade ban from purchase date
+      tradeUnlockAt = new Date(purchaseDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+
     // Create BUY Trade
     const trade = await this.prisma.trade.create({
       data: {
@@ -70,11 +79,7 @@ export class ManualService {
         type: 'BUY',
         status: tradeStatus,
         tradedAt: purchaseDate,
-        // If trade ban date is provided, maybe store it? 
-        // Prisma schema doesn't have tradeBanDate field on Trade.
-        // We rely on tradedAt + logic or status.
-        // But for manual items, user might want to see exact unlock date.
-        // For now, we rely on status.
+        tradeUnlockAt,
       },
     });
 
@@ -84,7 +89,7 @@ export class ManualService {
     // But manual items might not be "listed" yet.
     // However, MatcherService looks at listings for price? No, it looks at trades.
     // Let's NOT create a listing for now, unless user says "Listed".
-    
+
     return { item, trade };
   }
 
@@ -129,13 +134,13 @@ export class ManualService {
 
     return trade;
   }
-  
+
   async getManualItems() {
-      // Fetch all manual items
-      return this.prisma.item.findMany({
-          where: { platformSource: 'MANUAL' },
-          include: { trades: true }
-      });
+    // Fetch all manual items
+    return this.prisma.item.findMany({
+      where: { platformSource: 'MANUAL' },
+      include: { trades: true }
+    });
   }
 
   async deleteTrade(tradeId: string) {
@@ -147,36 +152,36 @@ export class ManualService {
   async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string }) {
     const trade = await this.prisma.trade.findUnique({ where: { id: tradeId } });
     if (!trade) throw new Error('Trade not found');
-    
+
     const data: any = {};
     if (dto.price !== undefined) {
-        if (trade.type === 'BUY') data.buyPrice = dto.price;
-        else data.sellPrice = dto.price;
+      if (trade.type === 'BUY') data.buyPrice = dto.price;
+      else data.sellPrice = dto.price;
     }
     if (dto.date !== undefined) {
-        data.tradedAt = new Date(dto.date);
+      data.tradedAt = new Date(dto.date);
     }
     if (dto.customSource !== undefined) {
-        data.customSource = dto.customSource;
+      data.customSource = dto.customSource;
     }
-    
+
     return this.prisma.trade.update({
-        where: { id: tradeId },
-        data,
+      where: { id: tradeId },
+      data,
     });
   }
 
   async deleteItem(itemId: string) {
     const item = await this.prisma.item.findUnique({ where: { id: itemId } });
     if (!item) throw new Error('Item not found');
-    
+
     if (item.platformSource !== 'MANUAL') {
-        throw new Error('Cannot delete non-manual item');
+      throw new Error('Cannot delete non-manual item');
     }
 
     await this.prisma.trade.deleteMany({ where: { itemId } });
     await this.prisma.listing.deleteMany({ where: { itemId } });
-    
+
     return this.prisma.item.delete({ where: { id: itemId } });
   }
 }

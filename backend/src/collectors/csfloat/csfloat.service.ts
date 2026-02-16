@@ -317,6 +317,19 @@ export class CsfloatService {
         this.logger.log(`Cleaned up ${stallCleanup.count} legacy stall_ trade duplicates`);
       }
 
+      // Backfill tradeUnlockAt for MANUAL TRADE_HOLD items (tradedAt + 7 days)
+      const backfillResult: any = await this.prisma.$executeRaw`
+        UPDATE trades
+        SET trade_unlock_at = DATE_ADD(traded_at, INTERVAL 7 DAY)
+        WHERE platform_source = 'MANUAL'
+          AND status = 'TRADE_HOLD'
+          AND trade_unlock_at IS NULL
+          AND traded_at IS NOT NULL
+      `;
+      if (backfillResult > 0) {
+        this.logger.log(`Backfilled tradeUnlockAt for ${backfillResult} manual TRADE_HOLD items`);
+      }
+
       const trades = await this.fetchTrades();
 
       for (const trade of trades) {

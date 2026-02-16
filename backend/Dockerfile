@@ -31,7 +31,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
 
 # Add debug script if it exists locally (optional, might fail if not in context, so ignore error)
-COPY check-db-connection.js ./check-db-connection.js
+# COPY check-db-connection.js ./check-db-connection.js
 
 EXPOSE 4001
 

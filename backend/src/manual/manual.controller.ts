@@ -2,7 +2,7 @@
 import { Controller, Post, Body, Get, Put, Delete, Param } from '@nestjs/common';
 import { ManualService, CreateManualItemDto, CreateManualSaleDto } from './manual.service';
 
-@Controller('api/manual')
+@Controller('manual')
 export class ManualController {
   constructor(private readonly manualService: ManualService) {}
 

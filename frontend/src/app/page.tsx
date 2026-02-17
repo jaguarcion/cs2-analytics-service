@@ -290,115 +290,133 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           />
         </div>
 
-        {/* Group Buttons + Sub-tabs — single row */}
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          {groups.map((g) => (
-            <button
-              key={g.value}
-              onClick={() => handleGroupChange(g.value)}
-              className={cn(
-                'rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                group === g.value
-                  ? 'bg-accent-blue text-white shadow-sm'
-                  : 'bg-dark-800 text-dark-400 hover:text-dark-200',
-              )}
-            >
-              {g.label}
-            </button>
-          ))}
+        {/* Navigation — Grouped Segmented Controls */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          {/* 1. Overview (Standalone) */}
+          <button
+            onClick={() => handleGroupChange('overview')}
+            className={cn(
+              'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+              group === 'overview'
+                ? 'bg-accent-blue text-white shadow-sm'
+                : 'bg-dark-800 text-dark-400 hover:text-dark-200',
+            )}
+          >
+            Обзор
+          </button>
 
-          {/* Sub-tab switcher — same row, separated by divider */}
-          {group === 'sells' && (
-            <>
-              <div className="mx-1 h-6 w-px bg-dark-700" />
-              <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
-                {[
-                  { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
-                  { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
-                ].map((st) => (
-                  <button
-                    key={st.value}
-                    onClick={() => setSubTab(st.value)}
-                    className={cn(
-                      'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                      subTab === st.value
-                        ? 'bg-accent-blue text-white shadow-sm'
-                        : 'text-dark-400 hover:text-dark-200',
-                    )}
-                  >
-                    {st.label}
-                    <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                      subTab === st.value
-                        ? 'bg-white/20 text-white'
-                        : 'bg-dark-700 text-dark-400',
-                    )}>{st.count}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {group === 'insale' && (
-            <>
-              <div className="mx-1 h-6 w-px bg-dark-700" />
-              <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
-                {[
-                  { value: 'csfloat_insale', label: 'CSFloat InSale', count: inSaleItems.length },
-                  { value: 'market_insale', label: 'Market.CSGO InSale', count: marketInSaleItems.length },
-                ].map((st) => (
-                  <button
-                    key={st.value}
-                    onClick={() => setSubTab(st.value)}
-                    className={cn(
-                      'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                      subTab === st.value
-                        ? 'bg-accent-blue text-white shadow-sm'
-                        : 'text-dark-400 hover:text-dark-200',
-                    )}
-                  >
-                    {st.label}
-                    <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                      subTab === st.value
-                        ? 'bg-white/20 text-white'
-                        : 'bg-dark-700 text-dark-400',
-                    )}>{st.count}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {group === 'other' && (
-            <>
-              <div className="mx-1 h-6 w-px bg-dark-700" />
-              <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
-                {[
-                  { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
-                  { value: 'inventory', label: 'Инвентарь', count: inventory.length },
-                  { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
-                ].map((st) => (
-                  <button
-                    key={st.value}
-                    onClick={() => setSubTab(st.value)}
-                    className={cn(
-                      'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                      subTab === st.value
-                        ? 'bg-accent-blue text-white shadow-sm'
-                        : 'text-dark-400 hover:text-dark-200',
-                    )}
-                  >
-                    {st.label}
-                    <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                      subTab === st.value
-                        ? 'bg-white/20 text-white'
-                        : 'bg-dark-700 text-dark-400',
-                    )}>{st.count}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          {/* 2. CSFloat Buy (Standalone) */}
+          <button
+            onClick={() => handleGroupChange('csfloat_buy')}
+            className={cn(
+              'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+              group === 'csfloat_buy'
+                ? 'bg-accent-blue text-white shadow-sm'
+                : 'bg-dark-800 text-dark-400 hover:text-dark-200',
+            )}
+          >
+            CSFloat Buy
+          </button>
+
+          {/* 3. Sells Group (Segmented) */}
+          <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
+            {[
+              { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
+              { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
+            ].map((st) => {
+              const isActive = group === 'sells' && subTab === st.value;
+              return (
+                <button
+                  key={st.value}
+                  onClick={() => {
+                    setGroup('sells');
+                    setSubTab(st.value);
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-accent-blue text-white shadow-sm'
+                      : 'text-dark-400 hover:text-dark-200',
+                  )}
+                >
+                  {st.label}
+                  <span className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : 'bg-dark-700 text-dark-400',
+                  )}>{st.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 4. InSale Group (Segmented) */}
+          <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
+            {[
+              { value: 'csfloat_insale', label: 'CSFloat InSale', count: inSaleItems.length },
+              { value: 'market_insale', label: 'Market.CSGO InSale', count: marketInSaleItems.length },
+            ].map((st) => {
+              const isActive = group === 'insale' && subTab === st.value;
+              return (
+                <button
+                  key={st.value}
+                  onClick={() => {
+                    setGroup('insale');
+                    setSubTab(st.value);
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-accent-blue text-white shadow-sm'
+                      : 'text-dark-400 hover:text-dark-200',
+                  )}
+                >
+                  {st.label}
+                  <span className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : 'bg-dark-700 text-dark-400',
+                  )}>{st.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 5. Other Group (Segmented) */}
+          <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
+            {[
+              { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
+              { value: 'inventory', label: 'Инвентарь', count: inventory.length },
+              { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
+            ].map((st) => {
+              const isActive = group === 'other' && subTab === st.value;
+              return (
+                <button
+                  key={st.value}
+                  onClick={() => {
+                    setGroup('other');
+                    setSubTab(st.value);
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-accent-blue text-white shadow-sm'
+                      : 'text-dark-400 hover:text-dark-200',
+                  )}
+                >
+                  {st.label}
+                  <span className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : 'bg-dark-700 text-dark-400',
+                  )}>{st.count}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Tab Content */}

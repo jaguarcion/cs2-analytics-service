@@ -290,7 +290,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           />
         </div>
 
-        {/* Group Buttons — pill style */}
+        {/* Group Buttons + Sub-tabs — single row */}
         <div className="mb-6 flex flex-wrap items-center gap-2">
           {groups.map((g) => (
             <button
@@ -306,6 +306,99 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {g.label}
             </button>
           ))}
+
+          {/* Sub-tab switcher — same row, separated by divider */}
+          {group === 'sells' && (
+            <>
+              <div className="mx-1 h-6 w-px bg-dark-700" />
+              <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
+                {[
+                  { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
+                  { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
+                ].map((st) => (
+                  <button
+                    key={st.value}
+                    onClick={() => setSubTab(st.value)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                      subTab === st.value
+                        ? 'bg-accent-blue text-white shadow-sm'
+                        : 'text-dark-400 hover:text-dark-200',
+                    )}
+                  >
+                    {st.label}
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                      subTab === st.value
+                        ? 'bg-white/20 text-white'
+                        : 'bg-dark-700 text-dark-400',
+                    )}>{st.count}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {group === 'insale' && (
+            <>
+              <div className="mx-1 h-6 w-px bg-dark-700" />
+              <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
+                {[
+                  { value: 'csfloat_insale', label: 'CSFloat InSale', count: inSaleItems.length },
+                  { value: 'market_insale', label: 'Market.CSGO InSale', count: marketInSaleItems.length },
+                ].map((st) => (
+                  <button
+                    key={st.value}
+                    onClick={() => setSubTab(st.value)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                      subTab === st.value
+                        ? 'bg-accent-blue text-white shadow-sm'
+                        : 'text-dark-400 hover:text-dark-200',
+                    )}
+                  >
+                    {st.label}
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                      subTab === st.value
+                        ? 'bg-white/20 text-white'
+                        : 'bg-dark-700 text-dark-400',
+                    )}>{st.count}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {group === 'other' && (
+            <>
+              <div className="mx-1 h-6 w-px bg-dark-700" />
+              <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
+                {[
+                  { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
+                  { value: 'inventory', label: 'Инвентарь', count: inventory.length },
+                  { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
+                ].map((st) => (
+                  <button
+                    key={st.value}
+                    onClick={() => setSubTab(st.value)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                      subTab === st.value
+                        ? 'bg-accent-blue text-white shadow-sm'
+                        : 'text-dark-400 hover:text-dark-200',
+                    )}
+                  >
+                    {st.label}
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                      subTab === st.value
+                        ? 'bg-white/20 text-white'
+                        : 'bg-dark-700 text-dark-400',
+                    )}>{st.count}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -316,89 +409,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </div>
           ) : (
             <>
-              {/* Sub-tab switcher for groups with multiple tabs */}
-              {group === 'sells' && (
-                <div className="mb-5 flex items-center gap-1 rounded-lg bg-dark-800 p-1 w-fit">
-                  {[
-                    { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
-                    { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
-                  ].map((st) => (
-                    <button
-                      key={st.value}
-                      onClick={() => setSubTab(st.value)}
-                      className={cn(
-                        'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                        subTab === st.value
-                          ? 'bg-accent-blue text-white shadow-sm'
-                          : 'text-dark-400 hover:text-dark-200',
-                      )}
-                    >
-                      {st.label}
-                      <span className={cn(
-                        'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                        subTab === st.value
-                          ? 'bg-white/20 text-white'
-                          : 'bg-dark-700 text-dark-400',
-                      )}>{st.count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {group === 'insale' && (
-                <div className="mb-5 flex items-center gap-1 rounded-lg bg-dark-800 p-1 w-fit">
-                  {[
-                    { value: 'csfloat_insale', label: 'CSFloat InSale', count: inSaleItems.length },
-                    { value: 'market_insale', label: 'Market.CSGO InSale', count: marketInSaleItems.length },
-                  ].map((st) => (
-                    <button
-                      key={st.value}
-                      onClick={() => setSubTab(st.value)}
-                      className={cn(
-                        'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                        subTab === st.value
-                          ? 'bg-accent-blue text-white shadow-sm'
-                          : 'text-dark-400 hover:text-dark-200',
-                      )}
-                    >
-                      {st.label}
-                      <span className={cn(
-                        'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                        subTab === st.value
-                          ? 'bg-white/20 text-white'
-                          : 'bg-dark-700 text-dark-400',
-                      )}>{st.count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {group === 'other' && (
-                <div className="mb-5 flex items-center gap-1 rounded-lg bg-dark-800 p-1 w-fit">
-                  {[
-                    { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
-                    { value: 'inventory', label: 'Инвентарь', count: inventory.length },
-                    { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
-                  ].map((st) => (
-                    <button
-                      key={st.value}
-                      onClick={() => setSubTab(st.value)}
-                      className={cn(
-                        'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                        subTab === st.value
-                          ? 'bg-accent-blue text-white shadow-sm'
-                          : 'text-dark-400 hover:text-dark-200',
-                      )}
-                    >
-                      {st.label}
-                      <span className={cn(
-                        'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                        subTab === st.value
-                          ? 'bg-white/20 text-white'
-                          : 'bg-dark-700 text-dark-400',
-                      )}>{st.count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {/* Tab content */}
               {group === 'overview' && (

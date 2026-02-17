@@ -293,18 +293,18 @@ export class AnalyticsController {
     try {
       const trades = await this.marketCsgoService.fetchActiveTrades();
 
-      // Get names of items already sold on Market.CSGO (COMPLETED / TRADE_HOLD)
+      // Get IDs of items already sold on Market.CSGO (COMPLETED / TRADE_HOLD)
       const soldTrades = await this.prisma.trade.findMany({
         where: {
           platformSource: 'MARKET_CSGO',
           type: 'SELL',
           status: { in: ['COMPLETED', 'TRADE_HOLD'] },
         },
-        include: { item: { select: { name: true } } },
+        select: { externalId: true },
       });
-      const soldNames = new Set(soldTrades.map((t) => t.item.name));
+      const soldIds = new Set(soldTrades.map((t) => t.externalId).filter(Boolean));
 
-      const filtered = trades.filter((t) => !soldNames.has(t.market_hash_name));
+      const filtered = trades.filter((t) => !soldIds.has(t.id));
 
       return filtered.map((trade) => ({
         id: trade.id,

@@ -46,6 +46,12 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 }
 
 function getTradeBanRemainingMs(trade: TradeItem): number {
+  // Market.CSGO SELL COMPLETED: 8-day closing period
+  if (trade.platformSource === 'MARKET_CSGO' && trade.status === 'COMPLETED' && trade.tradedAt) {
+    const closeDate = new Date(new Date(trade.tradedAt).getTime() + 8 * 24 * 60 * 60 * 1000);
+    const diff = closeDate.getTime() - Date.now();
+    return diff > 0 ? diff : 0;
+  }
   if (!trade.tradeUnlockAt) return 0;
   const banEnd = new Date(trade.tradeUnlockAt).getTime();
   const diff = banEnd - Date.now();

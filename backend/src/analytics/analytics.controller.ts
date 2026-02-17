@@ -5,6 +5,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { CsfloatService } from '../collectors/csfloat/csfloat.service';
 import { MarketCsgoService } from '../collectors/market-csgo/market-csgo.service';
+import { NotificationService } from '../notification/notification.service';
 import axios from 'axios';
 
 @Controller('analytics')
@@ -16,7 +17,29 @@ export class AnalyticsController {
     private readonly csfloatService: CsfloatService,
     private readonly marketCsgoService: MarketCsgoService,
     private readonly config: ConfigService,
+    private readonly notificationService: NotificationService,
   ) { }
+
+  @Post('test-notification')
+  async testNotification(
+    @Body() body: { itemName: string; platform?: string; price?: number; currency?: string },
+  ) {
+    const platform = body.platform || 'MARKET_CSGO';
+    const price = body.price || 0;
+    const currency = body.currency || (platform === 'MARKET_CSGO' ? 'RUB' : 'USD');
+
+    await this.notificationService.checkAndNotify(
+      {
+        itemName: body.itemName,
+        platform,
+        price,
+        currency,
+      },
+      `test-${Date.now()}`,
+    );
+
+    return { ok: true, message: `Notification check triggered for "${body.itemName}" sold on ${platform}` };
+  }
 
   @Get('summary')
   async getSummary(

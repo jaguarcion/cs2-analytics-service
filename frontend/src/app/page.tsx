@@ -342,7 +342,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Продажи — Market.CSGO
                   </h2>
-                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
+                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="date" defaultSortDir="desc" />
                 </div>
               )}
               {tab === 'third_party' && (
@@ -350,7 +350,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="mb-4 text-lg font-semibold text-dark-100">
                     Трейд-бан (ожидание)
                   </h2>
-                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
+                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
               {tab === 'inventory' && (

@@ -9,7 +9,7 @@ export class MatcherService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly normalizer: NormalizerService,
-  ) {}
+  ) { }
 
   /**
    * Deduplicate items across platforms.
@@ -145,7 +145,7 @@ export class MatcherService {
     // --- Pass 0: Match by same Item ID (explicit link) ---
     for (const sell of sellNorms) {
       if (usedSellIds.has(sell.trade.id)) continue;
-      
+
       const buyMatch = buyNorms.find(
         (b) =>
           !usedBuyIds.has(b.trade.id) &&
@@ -305,7 +305,14 @@ export class MatcherService {
     if (!buy.buyPrice || !sell.sellPrice) return;
 
     const buyPriceUsd = this.toUsd(buy.buyPrice, buy.platformSource, rubToUsd);
-    const sellPriceUsd = this.toUsd(sell.sellPrice, sell.platformSource, rubToUsd);
+    let sellPriceUsd = this.toUsd(sell.sellPrice, sell.platformSource, rubToUsd);
+
+    // Market.CSGO returns prices AFTER commission deduction.
+    // Add 5% back to get gross sale price, so commission math is consistent.
+    if (sell.platformSource === 'MARKET_CSGO') {
+      sellPriceUsd = sellPriceUsd * 1.05;
+    }
+
     const commission = sell.commission || 0.02;
     const netSell = sellPriceUsd * (1 - commission);
     const profit = netSell - buyPriceUsd;

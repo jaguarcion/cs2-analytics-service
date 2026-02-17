@@ -36,7 +36,7 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
   }
 
   switch (status) {
-    case 'COMPLETED': return type === 'SELL' ? 'Продано' : 'Куплено';
+    case 'COMPLETED': return type === 'SELL' ? 'Продано' : 'Доступно';
     case 'TRADE_HOLD': return type === 'SELL' ? 'Ожидание трейда' : 'Куплено (Бан)';
     case 'ACCEPTED': return 'В процессе';
     case 'PENDING': return type === 'SELL' ? 'В продаже' : 'Ожидание';
@@ -90,6 +90,8 @@ interface TradesTableProps {
   onBulkHide?: (ids: string[], hidden: boolean) => void;
   isHiddenView?: boolean;
   onReload?: () => void;
+  defaultSortKey?: SortKey;
+  defaultSortDir?: SortDir;
 }
 
 type SortKey = 'name' | 'wear' | 'float' | 'price' | 'platform' | 'status' | 'tradeban' | 'date';
@@ -126,14 +128,14 @@ function saveVisibleColumns(cols: Set<ColumnId>) {
   localStorage.setItem(LS_KEY, JSON.stringify(Array.from(cols)));
 }
 
-export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload }: TradesTableProps) {
+export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload, defaultSortKey, defaultSortDir }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortKey, setSortKey] = useState<SortKey | null>(defaultSortKey ?? null);
+  const [sortDir, setSortDir] = useState<SortDir>(defaultSortDir ?? 'asc');
   const [visibleCols, setVisibleCols] = useState<Set<ColumnId>>(loadVisibleColumns);
   const [colsDropdownOpen, setColsDropdownOpen] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
@@ -394,8 +396,8 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                 >
                   <span
                     className={`flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors ${visibleCols.has(id)
-                        ? 'border-accent-blue bg-accent-blue text-white'
-                        : 'border-dark-600'
+                      ? 'border-accent-blue bg-accent-blue text-white'
+                      : 'border-dark-600'
                       }`}
                   >
                     {visibleCols.has(id) && <Check className="h-2.5 w-2.5" />}
@@ -426,8 +428,8 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                 setSelectedIds(new Set());
               }}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${isHiddenView
-                  ? 'bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20'
-                  : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                ? 'bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20'
+                : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
                 }`}
             >
               {isHiddenView ? 'Показать выбранные' : 'Скрыть выбранные'}
@@ -446,10 +448,10 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   <button
                     onClick={toggleSelectAll}
                     className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${allSelected
-                        ? 'border-accent-blue bg-accent-blue text-white'
-                        : someSelected
-                          ? 'border-accent-blue/50 bg-accent-blue/20'
-                          : 'border-dark-600 hover:border-dark-500'
+                      ? 'border-accent-blue bg-accent-blue text-white'
+                      : someSelected
+                        ? 'border-accent-blue/50 bg-accent-blue/20'
+                        : 'border-dark-600 hover:border-dark-500'
                       }`}
                   >
                     {allSelected && <Check className="h-3 w-3" />}
@@ -484,8 +486,8 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                       <button
                         onClick={() => toggleSelect(trade.id)}
                         className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${isChecked
-                            ? 'border-accent-blue bg-accent-blue text-white'
-                            : 'border-dark-600 hover:border-dark-500'
+                          ? 'border-accent-blue bg-accent-blue text-white'
+                          : 'border-dark-600 hover:border-dark-500'
                           }`}
                       >
                         {isChecked && <Check className="h-3 w-3" />}
@@ -561,12 +563,12 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                     <td className="py-3 pr-4 whitespace-nowrap">
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${trade.status === 'COMPLETED'
-                            ? 'bg-accent-green/10 text-accent-green'
-                            : trade.status === 'CANCELLED'
-                              ? 'bg-accent-red/10 text-accent-red'
-                              : trade.status === 'ACCEPTED'
-                                ? 'bg-blue-500/10 text-blue-400'
-                                : 'bg-accent-orange/10 text-accent-orange'
+                          ? 'bg-accent-green/10 text-accent-green'
+                          : trade.status === 'CANCELLED'
+                            ? 'bg-accent-red/10 text-accent-red'
+                            : trade.status === 'ACCEPTED'
+                              ? 'bg-blue-500/10 text-blue-400'
+                              : 'bg-accent-orange/10 text-accent-orange'
                           }`}
                       >
                         {getStatusLabel(trade.status, type, trade.platformSource)}
@@ -575,18 +577,41 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   )}
                   {show('tradeban') && (
                     <td className="py-3 pr-4 whitespace-nowrap">
-                      {trade.tradedAt && showTradeBan(trade) ? (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="inline-block rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">
-                            Трейд-бан
-                          </span>
-                          <span className="text-[10px] text-yellow-500/70">
-                            {getTradeHoldRemaining(trade.tradedAt, trade.tradeUnlockAt)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-dark-600">—</span>
-                      )}
+                      {(() => {
+                        // Market.CSGO SELL COMPLETED: 8-day closing period
+                        if (trade.platformSource === 'MARKET_CSGO' && type === 'SELL' && trade.status === 'COMPLETED' && trade.tradedAt) {
+                          const closeDate = new Date(new Date(trade.tradedAt).getTime() + 8 * 24 * 60 * 60 * 1000);
+                          const diffMs = closeDate.getTime() - Date.now();
+                          if (diffMs > 0) {
+                            const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+                            const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-block rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
+                                  Закрытие сделки
+                                </span>
+                                <span className="text-[10px] text-blue-400/70">
+                                  {days > 0 ? `~${days}д ${hours}ч` : `~${hours}ч`}
+                                </span>
+                              </div>
+                            );
+                          }
+                        }
+                        // Trade ban display
+                        if (trade.tradedAt && showTradeBan(trade)) {
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-block rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                                Трейд-бан
+                              </span>
+                              <span className="text-[10px] text-yellow-500/70">
+                                {getTradeHoldRemaining(trade.tradedAt, trade.tradeUnlockAt)}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return <span className="text-dark-600">—</span>;
+                      })()}
                     </td>
                   )}
                   {show('date') && (

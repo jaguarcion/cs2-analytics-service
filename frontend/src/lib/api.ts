@@ -251,4 +251,23 @@ export async function fetchInSale(): Promise<InSaleItem[]> {
   return data;
 }
 
+export interface MarketInSaleItem {
+  id: string;
+  name: string;
+  itemName: string;
+  wear: string | null;
+  floatValue: number | null;
+  price: number;
+  currency: string;
+  createdAt: string;
+  imageUrl: string | null;
+  isStattrak: boolean;
+  isSouvenir: boolean;
+}
+
+export async function fetchMarketInSale(): Promise<MarketInSaleItem[]> {
+  const { data } = await api.get('/analytics/market-insale');
+  return data;
+}
+
 export default api;

@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import PeriodSelector from '@/components/PeriodSelector';
-import PlatformSelector from '@/components/PlatformSelector';
+
 import TradesTable from '@/components/TradesTable';
 import ProfitTable from '@/components/ProfitTable';
 import InSaleTable from '@/components/InSaleTable';
+import MarketInSaleTable from '@/components/MarketInSaleTable';
 import LoginForm from '@/components/LoginForm';
 import AddItemModal from '@/components/AddItemModal';
 import AddSaleModal from '@/components/AddSaleModal';
@@ -34,10 +35,12 @@ import {
   fetchThirdPartyItems,
   triggerFullSync,
   fetchInSale,
+  fetchMarketInSale,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
   type InSaleItem,
+  type MarketInSaleItem,
   type Period,
   type Platform,
 } from '@/lib/api';
@@ -45,7 +48,8 @@ import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { isAuthenticated, removeToken } from '@/lib/auth';
 
-type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inventory' | 'hidden' | 'third_party' | 'insale';
+type TabGroup = 'overview' | 'csfloat_buy' | 'sells' | 'insale' | 'other';
+type SubTab = string;
 
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -64,8 +68,9 @@ export default function DashboardPage() {
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>('month');
-  const [platform, setPlatform] = useState<Platform>('ALL');
-  const [tab, setTab] = useState<Tab>('overview');
+  const [platform] = useState<Platform>('ALL');
+  const [group, setGroup] = useState<TabGroup>('overview');
+  const [subTab, setSubTab] = useState<SubTab>('');
   const [loading, setLoading] = useState(true);
 
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
@@ -77,6 +82,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [inventory, setInventory] = useState<TradeItem[]>([]);
   const [thirdPartyItems, setThirdPartyItems] = useState<TradeItem[]>([]);
   const [inSaleItems, setInSaleItems] = useState<InSaleItem[]>([]);
+  const [marketInSaleItems, setMarketInSaleItems] = useState<MarketInSaleItem[]>([]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
@@ -86,7 +92,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setLoading(true);
     try {
       const params = { period, platform };
-      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData, inSaleData] =
+      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData, inSaleData, marketInSaleData] =
         await Promise.all([
           fetchSummary(params),
           fetchPurchases(params),
@@ -97,6 +103,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           fetchInventory({ platform }),
           fetchThirdPartyItems(),
           fetchInSale(),
+          fetchMarketInSale(),
         ]);
       setSummary(summaryData);
       setPurchases(purchasesData);
@@ -107,6 +114,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       setInventory(inventoryData);
       setThirdPartyItems(thirdPartyData);
       setInSaleItems(inSaleData);
+      setMarketInSaleItems(marketInSaleData);
     } catch (error) {
       console.error('Failed to load analytics data:', error);
     } finally {
@@ -151,20 +159,28 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   // Filter trades by platform
   const csfloatBuys = purchases.filter((t) => t.platformSource === 'CSFLOAT');
-  const csfloatSells = sales.filter((t) => t.platformSource === 'CSFLOAT');
-  const marketSells = sales.filter((t) => t.platformSource === 'MARKET_CSGO');
+  const csfloatSells = sales.filter((t) => t.platformSource === 'CSFLOAT' && (t.status === 'COMPLETED' || t.status === 'TRADE_HOLD'));
+  const marketSells = sales.filter((t) => t.platformSource === 'MARKET_CSGO' && (t.status === 'COMPLETED' || t.status === 'TRADE_HOLD'));
   const hiddenAll = [...hiddenPurchases, ...hiddenSales];
 
-  const tabs: { value: Tab; label: string; count: number }[] = [
-    { value: 'overview', label: 'Обзор', count: profitEntries.length },
-    { value: 'csfloat_buy', label: 'CSFloat Buy', count: csfloatBuys.length },
-    { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
-    { value: 'insale', label: 'CSFloat InSale', count: inSaleItems.length },
-    { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
-    { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
-    { value: 'inventory', label: 'Инвентарь', count: inventory.length },
-    { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
+  const groups: { value: TabGroup; label: string }[] = [
+    { value: 'overview', label: 'Обзор' },
+    { value: 'csfloat_buy', label: 'CSFloat Buy' },
+    { value: 'sells', label: 'CSFloat Sell / Market Sell' },
+    { value: 'insale', label: 'CSFloat InSale / Market.CSGO InSale' },
+    { value: 'other', label: 'Трейд-бан / Инвентарь / Скрытые' },
   ];
+
+  const handleGroupChange = (g: TabGroup) => {
+    setGroup(g);
+    if (g === 'sells') setSubTab('csfloat_sell');
+    else if (g === 'insale') setSubTab('csfloat_insale');
+    else if (g === 'other') setSubTab('third_party');
+    else setSubTab('');
+  };
+
+  // Init default sub-tab on first render
+  // (group starts as 'overview', subTab starts as '')
 
   return (
     <div className="min-h-screen bg-dark-950">
@@ -186,7 +202,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <PlatformSelector value={platform} onChange={setPlatform} />
               <PeriodSelector value={period} onChange={setPeriod} />
               <button
                 onClick={() => setIsAddItemOpen(true)}
@@ -275,30 +290,20 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           />
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-dark-800 scrollbar-hide">
-          {tabs.map((t) => (
+        {/* Group Buttons — pill style */}
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          {groups.map((g) => (
             <button
-              key={t.value}
-              onClick={() => setTab(t.value)}
+              key={g.value}
+              onClick={() => handleGroupChange(g.value)}
               className={cn(
-                'flex items-center gap-2 whitespace-nowrap px-3 py-2 text-xs font-medium transition-all border-b-2',
-                tab === t.value
-                  ? 'border-accent-blue text-accent-blue'
-                  : 'border-transparent text-dark-500 hover:text-dark-300',
+                'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                group === g.value
+                  ? 'bg-accent-blue text-white shadow-sm'
+                  : 'bg-dark-800 text-dark-400 hover:text-dark-200',
               )}
             >
-              {t.label}
-              {t.count > 0 && (
-                <span className={cn(
-                  'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                  tab === t.value
-                    ? 'bg-accent-blue/20 text-accent-blue'
-                    : 'bg-dark-700 text-dark-400',
-                )}>
-                  {t.count}
-                </span>
-              )}
+              {g.label}
             </button>
           ))}
         </div>
@@ -311,7 +316,92 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </div>
           ) : (
             <>
-              {tab === 'overview' && (
+              {/* Sub-tab switcher for groups with multiple tabs */}
+              {group === 'sells' && (
+                <div className="mb-5 flex items-center gap-1 rounded-lg bg-dark-800 p-1 w-fit">
+                  {[
+                    { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
+                    { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
+                  ].map((st) => (
+                    <button
+                      key={st.value}
+                      onClick={() => setSubTab(st.value)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                        subTab === st.value
+                          ? 'bg-accent-blue text-white shadow-sm'
+                          : 'text-dark-400 hover:text-dark-200',
+                      )}
+                    >
+                      {st.label}
+                      <span className={cn(
+                        'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                        subTab === st.value
+                          ? 'bg-white/20 text-white'
+                          : 'bg-dark-700 text-dark-400',
+                      )}>{st.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {group === 'insale' && (
+                <div className="mb-5 flex items-center gap-1 rounded-lg bg-dark-800 p-1 w-fit">
+                  {[
+                    { value: 'csfloat_insale', label: 'CSFloat InSale', count: inSaleItems.length },
+                    { value: 'market_insale', label: 'Market.CSGO InSale', count: marketInSaleItems.length },
+                  ].map((st) => (
+                    <button
+                      key={st.value}
+                      onClick={() => setSubTab(st.value)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                        subTab === st.value
+                          ? 'bg-accent-blue text-white shadow-sm'
+                          : 'text-dark-400 hover:text-dark-200',
+                      )}
+                    >
+                      {st.label}
+                      <span className={cn(
+                        'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                        subTab === st.value
+                          ? 'bg-white/20 text-white'
+                          : 'bg-dark-700 text-dark-400',
+                      )}>{st.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {group === 'other' && (
+                <div className="mb-5 flex items-center gap-1 rounded-lg bg-dark-800 p-1 w-fit">
+                  {[
+                    { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
+                    { value: 'inventory', label: 'Инвентарь', count: inventory.length },
+                    { value: 'hidden', label: 'Скрытые', count: hiddenAll.length },
+                  ].map((st) => (
+                    <button
+                      key={st.value}
+                      onClick={() => setSubTab(st.value)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                        subTab === st.value
+                          ? 'bg-accent-blue text-white shadow-sm'
+                          : 'text-dark-400 hover:text-dark-200',
+                      )}
+                    >
+                      {st.label}
+                      <span className={cn(
+                        'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                        subTab === st.value
+                          ? 'bg-white/20 text-white'
+                          : 'bg-dark-700 text-dark-400',
+                      )}>{st.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Tab content */}
+              {group === 'overview' && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-dark-100">
@@ -328,59 +418,43 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <ProfitTable entries={profitEntries} onReload={loadData} />
                 </div>
               )}
-              {tab === 'csfloat_buy' && (
+              {group === 'csfloat_buy' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Покупки — CSFloat
-                  </h2>
                   <TradesTable trades={csfloatBuys} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
-              {tab === 'csfloat_sell' && (
+              {group === 'sells' && subTab === 'csfloat_sell' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Продажи — CSFloat
-                  </h2>
                   <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
-              {tab === 'insale' && (
+              {group === 'sells' && subTab === 'market_sell' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    В продаже — CSFloat
-                  </h2>
-                  <InSaleTable items={inSaleItems} />
-                </div>
-              )}
-              {tab === 'market_sell' && (
-                <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Продажи — Market.CSGO
-                  </h2>
                   <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
-              {tab === 'third_party' && (
+              {group === 'insale' && subTab === 'csfloat_insale' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Трейд-бан (ожидание)
-                  </h2>
+                  <InSaleTable items={inSaleItems} />
+                </div>
+              )}
+              {group === 'insale' && subTab === 'market_insale' && (
+                <div>
+                  <MarketInSaleTable items={marketInSaleItems} fxRate={summary?.fxRate?.rate} />
+                </div>
+              )}
+              {group === 'other' && subTab === 'third_party' && (
+                <div>
                   <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
-              {tab === 'inventory' && (
+              {group === 'other' && subTab === 'inventory' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Инвентарь
-                  </h2>
                   <TradesTable trades={inventory} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} />
                 </div>
               )}
-              {tab === 'hidden' && (
+              {group === 'other' && subTab === 'hidden' && (
                 <div>
-                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
-                    Скрытые предметы
-                  </h2>
                   <TradesTable trades={hiddenAll} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} isHiddenView onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}

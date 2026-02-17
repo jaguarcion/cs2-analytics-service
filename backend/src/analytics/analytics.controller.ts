@@ -258,4 +258,39 @@ export class AnalyticsController {
       return [];
     }
   }
+
+  @Get('market-insale')
+  async getMarketInSale() {
+    try {
+      const trades = await this.marketCsgoService.fetchActiveTrades();
+
+      return trades.map((trade) => ({
+        id: trade.id,
+        name: trade.market_hash_name,
+        itemName: trade.market_hash_name.replace(/\s*\([^)]+\)\s*$/, ''),
+        wear: parseWearFromMarketName(trade.market_hash_name),
+        floatValue: trade.float || null,
+        price: trade.price, // RUB
+        currency: 'RUB',
+        createdAt: trade.created_at || new Date().toISOString(),
+        imageUrl: trade.class_id
+          ? `https://steamcommunity.com/economy/image/class/730/${trade.class_id}/${trade.instance_id || '0'}`
+          : null,
+        isStattrak: trade.market_hash_name.startsWith('StatTrak'),
+        isSouvenir: trade.market_hash_name.startsWith('Souvenir'),
+      }));
+    } catch (error) {
+      console.error('Failed to fetch Market.CSGO active items:', error.message);
+      return [];
+    }
+  }
+}
+
+function parseWearFromMarketName(name: string): string | null {
+  const match = name.match(/\(([^)]+)\)\s*$/);
+  if (match) {
+    const wears = ['Factory New', 'Minimal Wear', 'Field-Tested', 'Well-Worn', 'Battle-Scarred'];
+    if (wears.includes(match[1])) return match[1];
+  }
+  return null;
 }

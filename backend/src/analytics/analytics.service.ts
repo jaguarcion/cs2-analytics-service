@@ -100,20 +100,6 @@ export class AnalyticsService {
       0,
     );
 
-    // Sales (SELL trades)
-    const sales = await this.prisma.trade.findMany({
-      where: {
-        type: 'SELL',
-        hidden: false,
-        tradedAt: { gte: filter.from, lte: filter.to },
-        ...platformFilter,
-      },
-    });
-    const totalSales = sales.reduce(
-      (sum, t) => sum + toUsd(t.sellPrice || 0, t.platformSource),
-      0,
-    );
-
     // Profit from matched trades
     const matchedTrades = await this.matcher.getMatchedTrades();
     const filteredMatched = matchedTrades.filter((t) => {
@@ -126,13 +112,17 @@ export class AnalyticsService {
     const totalBuyForProfit = filteredMatched.reduce((sum, t) => sum + t.buyPrice, 0);
     const profitPercent = totalBuyForProfit > 0 ? (totalProfit / totalBuyForProfit) * 100 : 0;
 
+    // Sales (from matched trades only, per user request)
+    const totalSales = filteredMatched.reduce((sum, t) => sum + t.sellPrice, 0);
+    const salesCount = filteredMatched.length;
+
     return {
       inventoryValue: parseFloat(inventoryValue.toFixed(2)),
       inventoryCount: inventoryCount,
       totalPurchases: parseFloat(totalPurchases.toFixed(2)),
       purchasesCount: purchases.length,
       totalSales: parseFloat(totalSales.toFixed(2)),
-      salesCount: sales.length,
+      salesCount: salesCount,
       totalProfit: parseFloat(totalProfit.toFixed(2)),
       profitPercent: parseFloat(profitPercent.toFixed(2)),
       fxRate: fxRate ? { pair: fxRate.pair, rate: fxRate.rate, fetchedAt: fxRate.fetchedAt } : null,
@@ -218,30 +208,21 @@ export class AnalyticsService {
       0,
     );
 
-    // Sales in period
-    const sales = await this.prisma.trade.findMany({
-      where: {
-        type: 'SELL',
-        hidden: false,
-        tradedAt: { gte: filter.from, lte: filter.to },
-        ...platformFilter,
-      },
-    });
-    const salesTotal = sales.reduce(
-      (sum, t) => sum + toUsd(t.sellPrice || 0, t.platformSource),
-      0,
-    );
-
-    // Avg profit %
+    // Filter matched trades for the period
     const matchedTrades = await this.matcher.getMatchedTrades();
     const filteredMatched = matchedTrades.filter((t) => {
       const d = t.sellDate || t.buyDate;
       if (!d) return true;
       return d >= filter.from && d <= filter.to;
     });
+
     const totalBuy = filteredMatched.reduce((s, t) => s + t.buyPrice, 0);
     const totalProfit = filteredMatched.reduce((s, t) => s + t.profit, 0);
     const avgProfitPercent = totalBuy > 0 ? (totalProfit / totalBuy) * 100 : 0;
+
+    // Sales from Matched Trades (per user request)
+    const salesTotal = filteredMatched.reduce((s, t) => s + t.sellPrice, 0);
+    const salesCount = filteredMatched.length;
 
     // Daily chart data
     const dayMs = 24 * 60 * 60 * 1000;
@@ -258,9 +239,14 @@ export class AnalyticsService {
         .filter((p) => p.tradedAt && p.tradedAt >= dayStart && p.tradedAt <= dayEnd)
         .reduce((s, p) => s + toUsd(p.buyPrice || 0, p.platformSource), 0);
 
-      const daySales = sales
-        .filter((s) => s.tradedAt && s.tradedAt >= dayStart && s.tradedAt <= dayEnd)
-        .reduce((s, t) => s + toUsd(t.sellPrice || 0, t.platformSource), 0);
+      // Daily sales from matched trades
+      const daySales = filteredMatched
+        .filter((m) => {
+          // Use sellDate for sales chart, fallback to buyDate if missing (though sellDate should exist for a sale)
+          const d = m.sellDate || m.buyDate;
+          return d && d >= dayStart && d <= dayEnd;
+        })
+        .reduce((s, t) => s + t.sellPrice, 0);
 
       days.push({
         date: dateStr,
@@ -273,7 +259,7 @@ export class AnalyticsService {
       onSaleCount: onSale,
       purchasesCount: purchases.length,
       purchasesTotal: parseFloat(purchasesTotal.toFixed(2)),
-      salesCount: sales.length,
+      salesCount: salesCount,
       salesTotal: parseFloat(salesTotal.toFixed(2)),
       avgProfitPercent: parseFloat(avgProfitPercent.toFixed(2)),
       matchedCount: filteredMatched.length,

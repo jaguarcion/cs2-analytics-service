@@ -37,7 +37,7 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 
   switch (status) {
     case 'COMPLETED': return type === 'SELL' ? 'Продано' : 'Доступно';
-    case 'TRADE_HOLD': return type === 'SELL' ? 'Ожидание трейда' : 'Куплено (Бан)';
+    case 'TRADE_HOLD': return type === 'SELL' ? 'Закрытие сделки' : 'Куплено (Бан)';
     case 'ACCEPTED': return 'В процессе';
     case 'PENDING': return type === 'SELL' ? 'В продаже' : 'Ожидание';
     case 'CANCELLED': return 'Отменён';
@@ -613,14 +613,15 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                             );
                           }
                         }
-                        // Trade ban display
+                        // Trade ban / closing period display
                         if (trade.tradedAt && showTradeBan(trade)) {
+                          const isSell = type === 'SELL';
                           return (
                             <div className="flex flex-col gap-0.5">
-                              <span className="inline-block rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">
-                                Трейд-бан
+                              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${isSell ? 'bg-blue-500/10 text-blue-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                                {isSell ? 'Закрытие сделки' : 'Трейд-бан'}
                               </span>
-                              <span className="text-[10px] text-yellow-500/70">
+                              <span className={`text-[10px] ${isSell ? 'text-blue-400/70' : 'text-yellow-500/70'}`}>
                                 {getTradeHoldRemaining(trade.tradedAt, trade.tradeUnlockAt)}
                               </span>
                             </div>

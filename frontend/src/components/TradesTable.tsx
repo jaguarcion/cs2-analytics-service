@@ -567,18 +567,28 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   )}
                   {show('status') && (
                     <td className="py-3 pr-4 whitespace-nowrap">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${trade.status === 'COMPLETED'
-                          ? 'bg-accent-green/10 text-accent-green'
-                          : trade.status === 'CANCELLED'
-                            ? 'bg-accent-red/10 text-accent-red'
-                            : trade.status === 'ACCEPTED'
-                              ? 'bg-blue-500/10 text-blue-400'
-                              : 'bg-accent-orange/10 text-accent-orange'
-                          }`}
-                      >
-                        {getStatusLabel(trade.status, type, trade.platformSource)}
-                      </span>
+                      {(() => {
+                        // TRADE_HOLD with expired ban → show as "Доступно"
+                        const isExpiredBan = trade.status === 'TRADE_HOLD'
+                          && trade.tradeUnlockAt
+                          && new Date(trade.tradeUnlockAt).getTime() <= Date.now();
+                        const displayStatus = isExpiredBan ? 'COMPLETED' : trade.status;
+                        const label = isExpiredBan ? 'Доступно' : getStatusLabel(trade.status, type, trade.platformSource);
+                        return (
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${displayStatus === 'COMPLETED'
+                              ? 'bg-accent-green/10 text-accent-green'
+                              : displayStatus === 'CANCELLED'
+                                ? 'bg-accent-red/10 text-accent-red'
+                                : displayStatus === 'ACCEPTED'
+                                  ? 'bg-blue-500/10 text-blue-400'
+                                  : 'bg-accent-orange/10 text-accent-orange'
+                              }`}
+                          >
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </td>
                   )}
                   {show('tradeban') && (

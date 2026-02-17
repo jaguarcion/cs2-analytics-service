@@ -11,6 +11,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SyncModule } from './sync/sync.module';
 import { AuthModule } from './auth/auth.module';
 import { ManualModule } from './manual/manual.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ManualModule } from './manual/manual.module';
     AnalyticsModule,
     SyncModule,
     ManualModule,
+    NotificationModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

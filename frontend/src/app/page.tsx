@@ -19,6 +19,7 @@ import PeriodSelector from '@/components/PeriodSelector';
 import PlatformSelector from '@/components/PlatformSelector';
 import TradesTable from '@/components/TradesTable';
 import ProfitTable from '@/components/ProfitTable';
+import InSaleTable from '@/components/InSaleTable';
 import LoginForm from '@/components/LoginForm';
 import AddItemModal from '@/components/AddItemModal';
 import AddSaleModal from '@/components/AddSaleModal';
@@ -32,9 +33,11 @@ import {
   fetchInventory,
   fetchThirdPartyItems,
   triggerFullSync,
+  fetchInSale,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
+  type InSaleItem,
   type Period,
   type Platform,
 } from '@/lib/api';
@@ -42,7 +45,7 @@ import { formatUSD, formatPercent } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { isAuthenticated, removeToken } from '@/lib/auth';
 
-type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inventory' | 'hidden' | 'third_party';
+type Tab = 'overview' | 'csfloat_buy' | 'csfloat_sell' | 'market_sell' | 'inventory' | 'hidden' | 'third_party' | 'insale';
 
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -73,6 +76,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [hiddenSales, setHiddenSales] = useState<TradeItem[]>([]);
   const [inventory, setInventory] = useState<TradeItem[]>([]);
   const [thirdPartyItems, setThirdPartyItems] = useState<TradeItem[]>([]);
+  const [inSaleItems, setInSaleItems] = useState<InSaleItem[]>([]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
@@ -82,7 +86,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setLoading(true);
     try {
       const params = { period, platform };
-      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData] =
+      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData, inSaleData] =
         await Promise.all([
           fetchSummary(params),
           fetchPurchases(params),
@@ -92,6 +96,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           fetchSales({ ...params, hidden: true }),
           fetchInventory({ platform }),
           fetchThirdPartyItems(),
+          fetchInSale(),
         ]);
       setSummary(summaryData);
       setPurchases(purchasesData);
@@ -101,6 +106,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       setHiddenSales(hiddenSells);
       setInventory(inventoryData);
       setThirdPartyItems(thirdPartyData);
+      setInSaleItems(inSaleData);
     } catch (error) {
       console.error('Failed to load analytics data:', error);
     } finally {
@@ -153,6 +159,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     { value: 'overview', label: 'Обзор', count: profitEntries.length },
     { value: 'csfloat_buy', label: 'CSFloat Buy', count: csfloatBuys.length },
     { value: 'csfloat_sell', label: 'CSFloat Sell', count: csfloatSells.length },
+    { value: 'insale', label: 'CSFloat InSale', count: inSaleItems.length },
     { value: 'market_sell', label: 'Market Sell', count: marketSells.length },
     { value: 'third_party', label: 'Трейд-бан', count: thirdPartyItems.length },
     { value: 'inventory', label: 'Инвентарь', count: inventory.length },
@@ -335,6 +342,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     Продажи — CSFloat
                   </h2>
                   <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
+                </div>
+              )}
+              {tab === 'insale' && (
+                <div>
+                  <h2 className="mb-4 text-lg font-semibold text-dark-100">
+                    В продаже — CSFloat
+                  </h2>
+                  <InSaleTable items={inSaleItems} />
                 </div>
               )}
               {tab === 'market_sell' && (

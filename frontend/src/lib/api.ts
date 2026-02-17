@@ -225,4 +225,30 @@ export async function deleteManualItem(id: string): Promise<any> {
   return res;
 }
 
+export interface InSaleItem {
+  id: string;
+  name: string;
+  itemName: string;
+  wear: string | null;
+  floatValue: number | null;
+  price: number;
+  referencePrice: number | null;
+  basePrice: number | null;
+  quantity: number | null;
+  watchers: number;
+  createdAt: string;
+  imageUrl: string | null;
+  isStattrak: boolean;
+  isSouvenir: boolean;
+  type: string;
+  rarity: string | null;
+  collection: string | null;
+  stickers: { name: string; iconUrl: string }[];
+}
+
+export async function fetchInSale(): Promise<InSaleItem[]> {
+  const { data } = await api.get('/analytics/insale');
+  return data;
+}
+
 export default api;

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../../notification/notification.service';
 
 export interface MarketTrade {
   id: string;
@@ -53,6 +54,7 @@ export class MarketCsgoService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
   ) {
     this.client = axios.create({
       baseURL: this.config.get('MARKET_CSGO_BASE_URL', 'https://market.csgo.com'),
@@ -195,7 +197,7 @@ export class MarketCsgoService {
 
   async updateMissingFloats(limit = 50): Promise<number> {
     this.logger.log(`Checking for items with missing float values (limit: ${limit})...`);
-    
+
     // Find items from Market.CSGO that have no float value but have classId and assetId
     const items = await this.prisma.item.findMany({
       where: {
@@ -220,37 +222,37 @@ export class MarketCsgoService {
     const chunkSize = 5;
     for (let i = 0; i < items.length; i += chunkSize) {
       const chunk = items.slice(i, i + chunkSize);
-      
+
       const results = await Promise.allSettled(chunk.map(async (item) => {
         // Construct partial trade object for fetchFloatForTrade
         const trade = {
-           asset_id: item.assetId,
-           class_id: item.classId,
-           instance_id: item.instanceId || '0',
+          asset_id: item.assetId,
+          class_id: item.classId,
+          instance_id: item.instanceId || '0',
         } as MarketTrade;
-        
+
         try {
-            const floatValue = await this.fetchFloatForTrade(trade);
-            
-            if (floatValue !== null) {
-              await this.prisma.item.update({
-                where: { id: item.id },
-                data: { floatValue },
-              });
-              this.logger.log(`Updated float for item ${item.name} (${item.externalId}): ${floatValue}`);
-              return true;
-            } else {
-                this.logger.warn(`Failed to fetch float for item ${item.name} (${item.externalId})`);
-            }
+          const floatValue = await this.fetchFloatForTrade(trade);
+
+          if (floatValue !== null) {
+            await this.prisma.item.update({
+              where: { id: item.id },
+              data: { floatValue },
+            });
+            this.logger.log(`Updated float for item ${item.name} (${item.externalId}): ${floatValue}`);
+            return true;
+          } else {
+            this.logger.warn(`Failed to fetch float for item ${item.name} (${item.externalId})`);
+          }
         } catch (e) {
-            this.logger.error(`Error fetching float for item ${item.name}: ${e.message}`);
+          this.logger.error(`Error fetching float for item ${item.name}: ${e.message}`);
         }
         return false;
       }));
 
       const successCount = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
       updatedCount += successCount;
-      
+
       // Small delay between chunks to be nice to APIs
       if (i + chunkSize < items.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -323,11 +325,11 @@ export class MarketCsgoService {
           // If we are replacing an existing item with a history item, 
           // ensure we don't lose the IDs if the history item lacks them
           if (t._source === 'history') {
-             if (!t.asset_id && existing.asset_id) t.asset_id = existing.asset_id;
-             if (!t.class_id && existing.class_id) t.class_id = existing.class_id;
-             if (!t.instance_id && existing.instance_id) t.instance_id = existing.instance_id;
-             // Use the history item (with merged IDs)
-             tradeMap.set(t.id, t);
+            if (!t.asset_id && existing.asset_id) t.asset_id = existing.asset_id;
+            if (!t.class_id && existing.class_id) t.class_id = existing.class_id;
+            if (!t.instance_id && existing.instance_id) t.instance_id = existing.instance_id;
+            // Use the history item (with merged IDs)
+            tradeMap.set(t.id, t);
           }
           // If existing is history, we generally keep it as it's more final, 
           // unless we want to update some metadata from active? 
@@ -341,7 +343,7 @@ export class MarketCsgoService {
 
         // Warn if IDs are missing
         if (!trade.class_id || !trade.asset_id) {
-           this.logger.debug(`Item ${trade.id} (${trade.market_hash_name}) missing class_id/asset_id. Source: ${trade._source}, Status: ${trade.status}`);
+          this.logger.debug(`Item ${trade.id} (${trade.market_hash_name}) missing class_id/asset_id. Source: ${trade._source}, Status: ${trade.status}`);
         }
 
         // Build image URL from market_hash_name via Steam Community
@@ -359,10 +361,10 @@ export class MarketCsgoService {
 
         // Construct update object conditionally to avoid overwriting existing IDs with null
         const updateData: any = {
-            name: trade.market_hash_name,
-            wear,
-            floatValue,
-            imageUrl: trade.class_id ? imageUrl : undefined,
+          name: trade.market_hash_name,
+          wear,
+          floatValue,
+          imageUrl: trade.class_id ? imageUrl : undefined,
         };
         if (classIdStr) updateData.classId = classIdStr;
         if (instanceIdStr) updateData.instanceId = instanceIdStr;
@@ -441,6 +443,19 @@ export class MarketCsgoService {
         });
 
         itemsProcessed++;
+
+        // Cross-platform sale notification
+        if (tradeStatus === 'COMPLETED' || tradeStatus === 'TRADE_HOLD') {
+          await this.notificationService.checkAndNotify(
+            {
+              itemName: trade.market_hash_name,
+              platform: 'MARKET_CSGO',
+              price: trade.price,
+              currency: 'RUB',
+            },
+            trade.id,
+          );
+        }
       }
 
       await this.prisma.syncLog.create({

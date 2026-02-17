@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../../notification/notification.service';
 
 export interface CsfloatStallItem {
   id: string;
@@ -69,6 +70,7 @@ export class CsfloatService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
   ) {
     this.client = axios.create({
       baseURL: this.config.get('CSFLOAT_BASE_URL', 'https://csfloat.com/api/v1'),
@@ -415,6 +417,20 @@ export class CsfloatService {
         });
 
         itemsProcessed++;
+
+        // Cross-platform sale notification for SELL trades
+        if (tradeType === 'SELL' && (tradeStatus === 'COMPLETED' || tradeStatus === 'TRADE_HOLD')) {
+          await this.notificationService.checkAndNotify(
+            {
+              itemName: itemData.market_hash_name,
+              platform: 'CSFLOAT',
+              price: priceUsd,
+              currency: 'USD',
+              imageUrl: itemData.icon_url || null,
+            },
+            trade.id,
+          );
+        }
       }
 
       await this.prisma.syncLog.create({

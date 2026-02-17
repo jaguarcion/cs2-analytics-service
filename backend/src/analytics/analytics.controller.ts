@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Query, Param, Body, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { CsfloatService } from '../collectors/csfloat/csfloat.service';
 import { MarketCsgoService } from '../collectors/market-csgo/market-csgo.service';
+import axios from 'axios';
 
 @Controller('analytics')
 @UseGuards(AuthGuard)
@@ -13,7 +15,8 @@ export class AnalyticsController {
     private readonly prisma: PrismaService,
     private readonly csfloatService: CsfloatService,
     private readonly marketCsgoService: MarketCsgoService,
-  ) {}
+    private readonly config: ConfigService,
+  ) { }
 
   @Get('summary')
   async getSummary(
@@ -204,5 +207,55 @@ export class AnalyticsController {
       data: { hidden },
     });
     return { updated: result.count, hidden };
+  }
+
+  @Get('insale')
+  async getInSale() {
+    const steamId = this.config.get('CSFLOAT_STEAM_ID', '');
+    if (!steamId) {
+      return [];
+    }
+
+    try {
+      const response = await axios.get(
+        `https://csfloat.com/api/v1/users/${steamId}/stall`,
+        { timeout: 15000 },
+      );
+
+      const data = response.data?.data || [];
+
+      return data.map((listing: any) => ({
+        id: listing.id,
+        name: listing.item?.market_hash_name || 'Unknown',
+        itemName: listing.item?.item_name || '',
+        wear: listing.item?.wear_name || null,
+        floatValue: listing.item?.float_value || null,
+        price: listing.price / 100, // cents → USD
+        referencePrice: listing.reference?.predicted_price
+          ? listing.reference.predicted_price / 100
+          : null,
+        basePrice: listing.reference?.base_price
+          ? listing.reference.base_price / 100
+          : null,
+        quantity: listing.reference?.quantity || null,
+        watchers: listing.watchers || 0,
+        createdAt: listing.created_at,
+        imageUrl: listing.item?.icon_url
+          ? `https://community.akamai.steamstatic.com/economy/image/${listing.item.icon_url}`
+          : null,
+        isStattrak: listing.item?.is_stattrak || false,
+        isSouvenir: listing.item?.is_souvenir || false,
+        type: listing.item?.type || 'skin',
+        rarity: listing.item?.rarity_name || null,
+        collection: listing.item?.collection || null,
+        stickers: listing.item?.stickers?.map((s: any) => ({
+          name: s.name,
+          iconUrl: s.icon_url,
+        })) || [],
+      }));
+    } catch (error) {
+      console.error('Failed to fetch CSFloat stall:', error.message);
+      return [];
+    }
   }
 }

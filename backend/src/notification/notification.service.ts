@@ -36,8 +36,8 @@ export class NotificationService {
     }
 
     /**
-     * Check if a sold item has active listings on other platforms and notify via Telegram.
-     * Called after a SELL trade transitions to COMPLETED or TRADE_HOLD (sold, awaiting delivery).
+     * Check if a sold item has active SELL listings on other platforms and notify via Telegram.
+     * Called after a SELL trade transitions to COMPLETED or TRADE_HOLD.
      */
     async checkAndNotify(soldItem: SoldItem, soldTradeId: string): Promise<void> {
         if (!this.enabled) return;
@@ -49,11 +49,13 @@ export class NotificationService {
             const soldPlatform = soldItem.platform;
             const otherPlatform = soldPlatform === 'CSFLOAT' ? 'MARKET_CSGO' : 'CSFLOAT';
 
-            // Find active listings of items with the same name on the other platform
-            const crossListings = await this.prisma.listing.findMany({
+            // Find SELL trades on the other platform that are still pending (not yet sold)
+            // These are items still listed for sale that need to be removed
+            const crossTrades = await this.prisma.trade.findMany({
                 where: {
                     platformSource: otherPlatform,
-                    status: 'ACTIVE',
+                    type: 'SELL',
+                    status: { notIn: ['COMPLETED', 'TRADE_HOLD'] },
                     item: {
                         name: soldItem.itemName,
                     },
@@ -63,7 +65,10 @@ export class NotificationService {
                 },
             });
 
-            if (crossListings.length === 0) return; // No cross-listings, nothing to do
+            if (crossTrades.length === 0) {
+                this.logger.log(`No cross-listings found for "${soldItem.itemName}" on ${otherPlatform}`);
+                return;
+            }
 
             // Build notification message
             const platformLabels: Record<string, string> = {
@@ -78,11 +83,12 @@ export class NotificationService {
                 ? `${Math.round(soldItem.price).toLocaleString('ru-RU')} ₽`
                 : `$${soldItem.price.toFixed(2)}`;
 
-            const crossPrices = crossListings.map((l) => {
-                if (l.currency === 'RUB' || otherPlatform === 'MARKET_CSGO') {
-                    return `${Math.round(l.price).toLocaleString('ru-RU')} ₽`;
+            const crossPrices = crossTrades.map((t) => {
+                const p = t.sellPrice || 0;
+                if (otherPlatform === 'MARKET_CSGO') {
+                    return `${Math.round(p).toLocaleString('ru-RU')} ₽`;
                 }
-                return `$${l.price.toFixed(2)}`;
+                return `$${p.toFixed(2)}`;
             });
 
             const message = [
@@ -91,7 +97,7 @@ export class NotificationService {
                 `💰 *Цена:* ${priceStr}`,
                 ``,
                 `⚠️ *Снимите с:* ${removeFrom}`,
-                `📋 *Листинг:* ${crossPrices.join(', ')} (${crossListings.length} шт.)`,
+                `📋 *Листинг:* ${crossPrices.join(', ')} (${crossTrades.length} шт.)`,
             ].join('\n');
 
             await this.sendTelegram(message);
@@ -100,6 +106,23 @@ export class NotificationService {
             this.logger.log(`Cross-listing alert sent: ${soldItem.itemName} sold on ${soldOn}, active on ${removeFrom}`);
         } catch (error) {
             this.logger.error(`Failed to check/notify cross-listing: ${error.message}`);
+        }
+    }
+
+    /**
+     * Send a direct test message to verify Telegram bot connectivity.
+     */
+    async sendTestMessage(text: string): Promise<boolean> {
+        if (!this.enabled) {
+            this.logger.warn('Cannot send test message — Telegram notifications disabled');
+            return false;
+        }
+        try {
+            await this.sendTelegram(text);
+            return true;
+        } catch (error) {
+            this.logger.error(`Test message failed: ${error.message}`);
+            return false;
         }
     }
 

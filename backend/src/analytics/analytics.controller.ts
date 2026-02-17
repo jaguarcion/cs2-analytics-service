@@ -41,6 +41,12 @@ export class AnalyticsController {
     return { ok: true, message: `Notification check triggered for "${body.itemName}" sold on ${platform}` };
   }
 
+  @Post('test-telegram-ping')
+  async testTelegramPing() {
+    const sent = await this.notificationService.sendTestMessage('✅ CS2 Analytics — Telegram бот работает!');
+    return { ok: sent, message: sent ? 'Message sent' : 'Failed to send — check logs' };
+  }
+
   @Get('summary')
   async getSummary(
     @Query('period') period: string = 'month',
@@ -287,7 +293,20 @@ export class AnalyticsController {
     try {
       const trades = await this.marketCsgoService.fetchActiveTrades();
 
-      return trades.map((trade) => ({
+      // Get names of items already sold on Market.CSGO (COMPLETED / TRADE_HOLD)
+      const soldTrades = await this.prisma.trade.findMany({
+        where: {
+          platformSource: 'MARKET_CSGO',
+          type: 'SELL',
+          status: { in: ['COMPLETED', 'TRADE_HOLD'] },
+        },
+        include: { item: { select: { name: true } } },
+      });
+      const soldNames = new Set(soldTrades.map((t) => t.item.name));
+
+      const filtered = trades.filter((t) => !soldNames.has(t.market_hash_name));
+
+      return filtered.map((trade) => ({
         id: trade.id,
         name: trade.market_hash_name,
         itemName: trade.market_hash_name.replace(/\s*\([^)]+\)\s*$/, ''),

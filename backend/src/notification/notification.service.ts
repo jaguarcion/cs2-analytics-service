@@ -111,29 +111,51 @@ export class NotificationService {
                 }
             }
 
-            // Build message — always notify about the sale
+            // If no cross-listings found, skip notification (per user request)
+            if (crossTrades.length === 0) {
+                this.logger.debug(`No cross-listings found for "${soldItem.itemName}" (Normalized: "${normalizedName}") on ${otherPlatform}. Skipping notification.`);
+                // We still mark as notified to avoid re-checking this specific trade in the future? 
+                // Actually, if we skip it now, and later a cross-listing appears... no, the trigger is the SALE. 
+                // If it sells and we don't notify now, we won't notify later unless we re-process.
+                // But we should probably mark it as "processed" so we don't keep checking it on every sync?
+                // No, checkAndNotify is called on sync for ACTIVE trades? No, for COMPLETED trades.
+                // If we don't mark as notified, it will keep trying every sync?
+                // calculated above: "if (trade?.notifiedAt) return;"
+                // So if we return here WITHOUT updating notifiedAt, it will retry next sync.
+                // If the item on the other platform appears LATER, we might want to notify then?
+                // But the trigger is "Sale on Platform A". 
+                // If at that moment there is no listing on Platform B, there is no risk of double sell.
+                // So we should mark it as notified to stop checking.
+
+                if (trade) {
+                    await this.prisma.trade.update({
+                        where: { id: trade.id },
+                        // @ts-ignore
+                        data: { notifiedAt: new Date() },
+                    });
+                }
+                return;
+            }
+
+            // Build message — only if cross-listing exists
             const lines = [
                 `🔴 *Продано:* ${this.escapeMarkdown(soldItem.itemName)}`,
                 `📦 *Площадка:* ${soldOn}`,
                 `💰 *Цена:* ${priceStr}`,
             ];
 
-            // Add cross-platform warning if applicable
-            if (crossTrades.length > 0) {
-                const crossPrices = crossTrades.map((t) => {
-                    const p = t.sellPrice || 0;
-                    if (otherPlatform === 'MARKET_CSGO') {
-                        return `${Math.round(p).toLocaleString('ru-RU')} ₽`;
-                    }
-                    return `$${p.toFixed(2)}`;
-                });
+            const crossPrices = crossTrades.map((t) => {
+                const p = t.sellPrice || 0;
+                if (otherPlatform === 'MARKET_CSGO') {
+                    return `${Math.round(p).toLocaleString('ru-RU')} ₽`;
+                }
+                return `$${p.toFixed(2)}`;
+            });
 
-                lines.push('');
-                lines.push(`⚠️ *Снимите с:* ${removeFrom}`);
-                lines.push(`📋 *Листинг:* ${crossPrices.join(', ')} (${crossTrades.length} шт.)`);
-            } else {
-                this.logger.debug(`No cross-listings found for "${soldItem.itemName}" (Normalized: "${normalizedName}") on ${otherPlatform}`);
-            }
+            lines.push('');
+            lines.push(`⚠️ *Снимите с:* ${removeFrom}`);
+            lines.push(`📋 *Листинг:* ${crossPrices.join(', ')} (${crossTrades.length} шт.)`);
+
 
             await this.sendTelegram(lines.join('\n'));
 

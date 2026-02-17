@@ -17,9 +17,6 @@ export class NotificationService {
     private readonly chatId: string;
     private readonly enabled: boolean;
 
-    // Track already notified trades to avoid duplicate notifications
-    private readonly notifiedTradeIds = new Set<string>();
-
     constructor(
         private readonly config: ConfigService,
         private readonly prisma: PrismaService,
@@ -36,41 +33,33 @@ export class NotificationService {
     }
 
     /**
-     * Check if a sold item has active SELL listings on other platforms and notify via Telegram.
-     * Called after a SELL trade transitions to COMPLETED or TRADE_HOLD.
+     * Notify about a sold item. Always sends a notification for new sales.
+     * Optionally adds cross-platform warning if the item is still listed elsewhere.
+     * Uses DB `notifiedAt` field for dedup (survives container restarts).
      */
     async checkAndNotify(soldItem: SoldItem, soldTradeId: string): Promise<void> {
         if (!this.enabled) return;
 
-        // Avoid duplicate notifications for the same trade
-        if (this.notifiedTradeIds.has(soldTradeId)) return;
-
         try {
-            const soldPlatform = soldItem.platform;
-            const otherPlatform = soldPlatform === 'CSFLOAT' ? 'MARKET_CSGO' : 'CSFLOAT';
-
-            // Find SELL trades on the other platform that are still pending (not yet sold)
-            // These are items still listed for sale that need to be removed
-            const crossTrades = await this.prisma.trade.findMany({
+            // DB-based dedup: check if this trade was already notified
+            const trade = await this.prisma.trade.findFirst({
                 where: {
-                    platformSource: otherPlatform,
-                    type: 'SELL',
-                    status: { notIn: ['COMPLETED', 'TRADE_HOLD'] },
-                    item: {
-                        name: soldItem.itemName,
-                    },
+                    externalId: soldTradeId,
+                    platformSource: soldItem.platform as any,
                 },
-                include: {
-                    item: { select: { name: true } },
+                select: {
+                    id: true,
+                    // @ts-ignore: Field exists in DB
+                    notifiedAt: true
                 },
             });
 
-            if (crossTrades.length === 0) {
-                this.logger.log(`No cross-listings found for "${soldItem.itemName}" on ${otherPlatform}`);
-                return;
-            }
+            // @ts-ignore: Field exists in DB
+            if (trade?.notifiedAt) return; // Already notified
 
-            // Build notification message
+            const soldPlatform = soldItem.platform;
+            const otherPlatform = soldPlatform === 'CSFLOAT' ? 'MARKET_CSGO' : 'CSFLOAT';
+
             const platformLabels: Record<string, string> = {
                 CSFLOAT: 'CSFloat',
                 MARKET_CSGO: 'Market.CSGO',
@@ -83,29 +72,83 @@ export class NotificationService {
                 ? `${Math.round(soldItem.price).toLocaleString('ru-RU')} ₽`
                 : `$${soldItem.price.toFixed(2)}`;
 
-            const crossPrices = crossTrades.map((t) => {
-                const p = t.sellPrice || 0;
-                if (otherPlatform === 'MARKET_CSGO') {
-                    return `${Math.round(p).toLocaleString('ru-RU')} ₽`;
-                }
-                return `$${p.toFixed(2)}`;
+            // Normalize name for comparison: trim and collapse multiple spaces
+            const normalizedName = soldItem.itemName.trim().replace(/\s+/g, ' ');
+
+            // Check for cross-platform listings
+            const crossTrades = await this.prisma.trade.findMany({
+                where: {
+                    platformSource: otherPlatform as any,
+                    type: 'SELL',
+                    status: { notIn: ['COMPLETED', 'TRADE_HOLD'] },
+                    item: {
+                        name: soldItem.itemName, // Try exact match first
+                    },
+                },
+                include: {
+                    item: { select: { name: true } },
+                },
             });
 
-            const message = [
+            // If no exact match, try normalized match if the name was modified
+            if (crossTrades.length === 0 && normalizedName !== soldItem.itemName) {
+                const looseMatches = await this.prisma.trade.findMany({
+                    where: {
+                        platformSource: otherPlatform as any,
+                        type: 'SELL',
+                        status: { notIn: ['COMPLETED', 'TRADE_HOLD'] },
+                        item: {
+                            name: { contains: normalizedName }, // Looser check
+                        },
+                    },
+                    include: {
+                        item: { select: { name: true } },
+                    },
+                });
+                if (looseMatches.length > 0) {
+                    crossTrades.push(...looseMatches);
+                    this.logger.log(`Found cross-listing via normalized name: "${normalizedName}"`);
+                }
+            }
+
+            // Build message — always notify about the sale
+            const lines = [
                 `🔴 *Продано:* ${this.escapeMarkdown(soldItem.itemName)}`,
                 `📦 *Площадка:* ${soldOn}`,
                 `💰 *Цена:* ${priceStr}`,
-                ``,
-                `⚠️ *Снимите с:* ${removeFrom}`,
-                `📋 *Листинг:* ${crossPrices.join(', ')} (${crossTrades.length} шт.)`,
-            ].join('\n');
+            ];
 
-            await this.sendTelegram(message);
-            this.notifiedTradeIds.add(soldTradeId);
+            // Add cross-platform warning if applicable
+            if (crossTrades.length > 0) {
+                const crossPrices = crossTrades.map((t) => {
+                    const p = t.sellPrice || 0;
+                    if (otherPlatform === 'MARKET_CSGO') {
+                        return `${Math.round(p).toLocaleString('ru-RU')} ₽`;
+                    }
+                    return `$${p.toFixed(2)}`;
+                });
 
-            this.logger.log(`Cross-listing alert sent: ${soldItem.itemName} sold on ${soldOn}, active on ${removeFrom}`);
+                lines.push('');
+                lines.push(`⚠️ *Снимите с:* ${removeFrom}`);
+                lines.push(`📋 *Листинг:* ${crossPrices.join(', ')} (${crossTrades.length} шт.)`);
+            } else {
+                this.logger.debug(`No cross-listings found for "${soldItem.itemName}" (Normalized: "${normalizedName}") on ${otherPlatform}`);
+            }
+
+            await this.sendTelegram(lines.join('\n'));
+
+            // Mark as notified in DB
+            if (trade) {
+                await this.prisma.trade.update({
+                    where: { id: trade.id },
+                    // @ts-ignore: Field exists in DB after migration but Prisma Client needs regeneration
+                    data: { notifiedAt: new Date() },
+                });
+            }
+
+            this.logger.log(`Sale notification sent: ${soldItem.itemName} on ${soldOn}`);
         } catch (error) {
-            this.logger.error(`Failed to check/notify cross-listing: ${error.message}`);
+            this.logger.error(`Failed to check/notify sale: ${error.message}`);
         }
     }
 
@@ -149,3 +192,4 @@ export class NotificationService {
         return text.replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
     }
 }
+

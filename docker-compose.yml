@@ -37,6 +37,8 @@ services:
       MARKET_CSGO_API_KEY: ${MARKET_CSGO_API_KEY}
       MARKET_CSGO_BASE_URL: ${MARKET_CSGO_BASE_URL:-https://market.csgo.com}
       AUTH_TOKEN: ${AUTH_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     depends_on:
       - mysql
       - redis

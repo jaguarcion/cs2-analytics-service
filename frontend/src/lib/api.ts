@@ -270,4 +270,23 @@ export async function fetchMarketInSale(): Promise<MarketInSaleItem[]> {
   return data;
 }
 
+export interface PricempireItem {
+  id: number;
+  name: string;
+  image: string;
+  price: {
+    csfloat?: number;
+    marketcsgo?: number;
+    [key: string]: number | undefined;
+  };
+  profit?: number;
+  roi?: number;
+  trend?: number; // Simplified trend
+}
+
+export async function fetchPricempireComparison(): Promise<PricempireItem[]> {
+  const { data } = await api.get('/pricempire/comparison');
+  return data;
+}
+
 export default api;

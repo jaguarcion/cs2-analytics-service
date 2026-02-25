@@ -11,6 +11,7 @@ import {
   RefreshCw,
   LogOut,
   BarChart3,
+  Globe,
   Plus,
   Coins,
 } from 'lucide-react';
@@ -218,6 +219,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <RefreshCw
                   className={cn('h-4 w-4', (loading || isSyncing) && 'animate-spin')}
                 />
+              </button>
+              <button
+                onClick={() => router.push('/market')}
+                className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-purple"
+                title="Рынок (Pricempire)"
+              >
+                <Globe className="h-4 w-4" />
               </button>
               <button
                 onClick={() => router.push('/stats')}

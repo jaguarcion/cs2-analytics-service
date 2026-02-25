@@ -11,7 +11,6 @@ import {
   RefreshCw,
   LogOut,
   BarChart3,
-  Globe,
   Plus,
   Coins,
 } from 'lucide-react';
@@ -21,7 +20,7 @@ import PeriodSelector from '@/components/PeriodSelector';
 import TradesTable from '@/components/TradesTable';
 import ProfitTable from '@/components/ProfitTable';
 import InSaleTable from '@/components/InSaleTable';
-import MarketInSaleTable from '@/components/MarketInSaleTable';
+
 import LoginForm from '@/components/LoginForm';
 import AddItemModal from '@/components/AddItemModal';
 import AddSaleModal from '@/components/AddSaleModal';
@@ -36,12 +35,11 @@ import {
   fetchThirdPartyItems,
   triggerFullSync,
   fetchInSale,
-  fetchMarketInSale,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
   type InSaleItem,
-  type MarketInSaleItem,
+
   type Period,
   type Platform,
 } from '@/lib/api';
@@ -70,6 +68,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>('month');
   const [platform] = useState<Platform>('ALL');
+  const [customFrom, setCustomFrom] = useState<string>('');
+  const [customTo, setCustomTo] = useState<string>('');
   const [group, setGroup] = useState<TabGroup>('overview');
   const [subTab, setSubTab] = useState<SubTab>('');
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [inventory, setInventory] = useState<TradeItem[]>([]);
   const [thirdPartyItems, setThirdPartyItems] = useState<TradeItem[]>([]);
   const [inSaleItems, setInSaleItems] = useState<InSaleItem[]>([]);
-  const [marketInSaleItems, setMarketInSaleItems] = useState<MarketInSaleItem[]>([]);
+
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
@@ -92,8 +92,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { period, platform };
-      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData, inSaleData, marketInSaleData] =
+      const params = period === 'custom' && customFrom && customTo
+        ? { from: customFrom, to: customTo, platform }
+        : { period, platform };
+      const [summaryData, purchasesData, salesData, profitData, hiddenBuys, hiddenSells, inventoryData, thirdPartyData, inSaleData] =
         await Promise.all([
           fetchSummary(params),
           fetchPurchases(params),
@@ -104,7 +106,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           fetchInventory({ platform }),
           fetchThirdPartyItems(),
           fetchInSale(),
-          fetchMarketInSale(),
         ]);
       setSummary(summaryData);
       setPurchases(purchasesData);
@@ -115,13 +116,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       setInventory(inventoryData);
       setThirdPartyItems(thirdPartyData);
       setInSaleItems(inSaleData);
-      setMarketInSaleItems(marketInSaleData);
+
     } catch (error) {
       console.error('Failed to load analytics data:', error);
     } finally {
       setLoading(false);
     }
-  }, [period, platform]);
+  }, [period, platform, customFrom, customTo]);
 
   const handleFullSync = useCallback(async () => {
     setIsSyncing(true);
@@ -203,7 +204,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <PeriodSelector value={period} onChange={setPeriod} />
+              <PeriodSelector
+                value={period}
+                onChange={(p) => { setPeriod(p); setCustomFrom(''); setCustomTo(''); }}
+                onCustomRange={(from, to) => { setCustomFrom(from); setCustomTo(to); setPeriod('custom'); }}
+                customFrom={customFrom}
+                customTo={customTo}
+              />
               <button
                 onClick={() => setIsAddItemOpen(true)}
                 className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-green"
@@ -220,13 +227,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   className={cn('h-4 w-4', (loading || isSyncing) && 'animate-spin')}
                 />
               </button>
-              <button
-                onClick={() => router.push('/market')}
-                className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-purple"
-                title="Рынок (Pricempire)"
-              >
-                <Globe className="h-4 w-4" />
-              </button>
+
               <button
                 onClick={() => router.push('/stats')}
                 className="rounded-lg bg-dark-800 p-2 text-dark-400 transition-colors hover:bg-dark-700 hover:text-accent-blue"
@@ -359,38 +360,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             })}
           </div>
 
-          {/* 4. InSale Group (Segmented) */}
-          <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
-            {[
-              { value: 'csfloat_insale', label: 'CSFloat InSale', count: inSaleItems.length },
-              { value: 'market_insale', label: 'Market.CSGO InSale', count: marketInSaleItems.length },
-            ].map((st) => {
-              const isActive = group === 'insale' && subTab === st.value;
-              return (
-                <button
-                  key={st.value}
-                  onClick={() => {
-                    setGroup('insale');
-                    setSubTab(st.value);
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-accent-blue text-white shadow-sm'
-                      : 'text-dark-400 hover:text-dark-200',
-                  )}
-                >
-                  {st.label}
-                  <span className={cn(
-                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : 'bg-dark-700 text-dark-400',
-                  )}>{st.count}</span>
-                </button>
-              );
-            })}
-          </div>
+          {/* 4. InSale (Standalone — only CSFloat InSale left) */}
+          <button
+            onClick={() => { setGroup('insale'); setSubTab('csfloat_insale'); }}
+            className={cn(
+              'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+              group === 'insale'
+                ? 'bg-accent-blue text-white shadow-sm'
+                : 'bg-dark-800 text-dark-400 hover:text-dark-200',
+            )}
+          >
+            CSFloat InSale
+            <span className={cn(
+              'ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+              group === 'insale'
+                ? 'bg-white/20 text-white'
+                : 'bg-dark-700 text-dark-400',
+            )}>{inSaleItems.length}</span>
+          </button>
 
           {/* 5. Other Group (Segmented) */}
           <div className="flex items-center gap-1 rounded-lg bg-dark-800 p-1">
@@ -474,11 +461,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <InSaleTable items={inSaleItems} />
                 </div>
               )}
-              {group === 'insale' && subTab === 'market_insale' && (
-                <div>
-                  <MarketInSaleTable items={marketInSaleItems} fxRate={summary?.fxRate?.rate} />
-                </div>
-              )}
+
               {group === 'other' && subTab === 'third_party' && (
                 <div>
                   <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />

@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MatcherService } from '../matcher/matcher.service';
 import * as dayjs from 'dayjs';
+import * as isoWeek from 'dayjs/plugin/isoWeek';
+dayjs.extend(isoWeek);
 
 export interface AnalyticsSummary {
   inventoryValue: number;
@@ -36,16 +38,15 @@ export class AnalyticsService {
 
     switch (period) {
       case 'week':
-        from = dayjs().subtract(7, 'day').startOf('day').toDate();
+        // С начала текущей недели (понедельник)
+        from = dayjs().startOf('isoWeek').toDate();
         break;
       case 'month':
-        from = dayjs().subtract(1, 'month').startOf('day').toDate();
-        break;
-      case '3months':
-        from = dayjs().subtract(3, 'month').startOf('day').toDate();
+        // С начала текущего месяца
+        from = dayjs().startOf('month').toDate();
         break;
       default:
-        from = dayjs().subtract(1, 'month').startOf('day').toDate();
+        from = dayjs().startOf('month').toDate();
         break;
     }
 

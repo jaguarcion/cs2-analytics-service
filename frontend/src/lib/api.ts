@@ -89,7 +89,7 @@ export interface SyncLog {
   finishedAt: string | null;
 }
 
-export type Period = 'week' | 'month' | '3months' | 'custom';
+export type Period = 'week' | 'month' | 'custom';
 export type Platform = 'ALL' | 'CSFLOAT' | 'MARKET_CSGO' | 'MANUAL';
 
 interface QueryParams {
@@ -251,42 +251,6 @@ export async function fetchInSale(): Promise<InSaleItem[]> {
   return data;
 }
 
-export interface MarketInSaleItem {
-  id: string;
-  name: string;
-  itemName: string;
-  wear: string | null;
-  floatValue: number | null;
-  price: number;
-  currency: string;
-  createdAt: string;
-  imageUrl: string | null;
-  isStattrak: boolean;
-  isSouvenir: boolean;
-}
 
-export async function fetchMarketInSale(): Promise<MarketInSaleItem[]> {
-  const { data } = await api.get('/analytics/market-insale');
-  return data;
-}
-
-export interface PricempireItem {
-  id: number;
-  name: string;
-  image: string;
-  price: {
-    csfloat?: number;
-    marketcsgo?: number;
-    [key: string]: number | undefined;
-  };
-  profit?: number;
-  roi?: number;
-  trend?: number; // Simplified trend
-}
-
-export async function fetchPricempireComparison(): Promise<PricempireItem[]> {
-  const { data } = await api.get('/pricempire/comparison');
-  return data;
-}
 
 export default api;

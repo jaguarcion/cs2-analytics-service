@@ -12,7 +12,6 @@ import { SyncModule } from './sync/sync.module';
 import { AuthModule } from './auth/auth.module';
 import { ManualModule } from './manual/manual.module';
 import { NotificationModule } from './notification/notification.module';
-import { PricempireModule } from './pricempire/pricempire.module';
 
 @Module({
   imports: [
@@ -41,7 +40,7 @@ import { PricempireModule } from './pricempire/pricempire.module';
     SyncModule,
     ManualModule,
     NotificationModule,
-    PricempireModule,
   ],
 })
 export class AppModule { }
+

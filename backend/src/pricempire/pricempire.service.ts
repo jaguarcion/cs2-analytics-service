@@ -34,10 +34,19 @@ export class PricempireService {
       const { data } = await axios.get(this.API_URL, {
         params,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Referer': 'https://pricempire.com/',
-          'Origin': 'https://pricempire.com'
+          'Origin': 'https://pricempire.com',
+          'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Fetch-Dest': 'empty',
+          'Sec-Fetch-Mode': 'cors',
+          'Sec-Fetch-Site': 'same-site',
+          'Connection': 'keep-alive'
         }
       });
 
@@ -45,12 +54,11 @@ export class PricempireService {
     } catch (error: any) {
       this.logger.error(`Failed to fetch pricempire data: ${error.message}`);
       
-      if (error.response?.status === 403) {
-        throw new Error('Pricempire access denied (Cloudflare). We might need a cookie/proxy.');
+      if (error.response) {
+        this.logger.error(`Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`);
       }
-      
-      // Fallback/Mock data structure for development if API fails (so UI can be built)
-      // Remove this in production if strict error handling is needed
+
+      // Return empty array instead of throwing 500, so UI renders
       return []; 
     }
   }

@@ -28,6 +28,12 @@ export default function MarketPage() {
     }
   };
 
+  const getImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `https://community.steamstatic.com/economy/image/${url}`;
+  };
+
   useEffect(() => {
     loadData();
   }, []);
@@ -72,7 +78,6 @@ export default function MarketPage() {
                   <tr className="border-b border-dark-700 bg-dark-800/50 text-xs font-medium uppercase text-dark-400">
                     <th className="px-6 py-4">Item</th>
                     <th className="px-6 py-4 text-center">Price Comparison</th>
-                    <th className="px-6 py-4 text-center">Trend</th>
                     <th className="px-6 py-4 text-right">Profit</th>
                     <th className="px-6 py-4 text-right">ROI</th>
                     <th className="px-6 py-4"></th>
@@ -84,7 +89,6 @@ export default function MarketPage() {
                       <tr key={i} className="animate-pulse">
                         <td className="px-6 py-4"><div className="h-12 w-48 rounded bg-dark-700"></div></td>
                         <td className="px-6 py-4"><div className="mx-auto h-8 w-32 rounded bg-dark-700"></div></td>
-                        <td className="px-6 py-4"><div className="mx-auto h-8 w-24 rounded bg-dark-700"></div></td>
                         <td className="px-6 py-4"><div className="ml-auto h-6 w-16 rounded bg-dark-700"></div></td>
                         <td className="px-6 py-4"><div className="ml-auto h-6 w-12 rounded bg-dark-700"></div></td>
                         <td className="px-6 py-4"><div className="h-8 w-24 rounded bg-dark-700"></div></td>
@@ -92,7 +96,7 @@ export default function MarketPage() {
                     ))
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-dark-400">
+                      <td colSpan={5} className="px-6 py-12 text-center text-dark-400">
                         Нет данных
                       </td>
                     </tr>
@@ -102,7 +106,7 @@ export default function MarketPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
                             <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-dark-800">
-                              <img src={item.image} alt={item.name} className="h-full w-full object-contain" />
+                              <img src={getImageUrl(item.image)} alt={item.name} className="h-full w-full object-contain" />
                             </div>
                             <div className="font-medium text-white group-hover:text-accent-blue transition-colors">
                               {item.name}
@@ -122,12 +126,6 @@ export default function MarketPage() {
                               <span className="text-[10px] text-dark-400">M</span>
                               <span className="text-white font-medium">{formatUSD((item.price.marketcsgo || 0) / 100)}</span>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {/* Simulated trend */}
-                          <div className="flex justify-center">
-                            <TrendingUp className="h-5 w-5 text-accent-blue opacity-50" />
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">

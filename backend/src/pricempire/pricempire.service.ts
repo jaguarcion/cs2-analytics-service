@@ -55,6 +55,7 @@ export class PricempireService {
       const result = Array.isArray(data) ? data : (data.comparison || data.data || []);
       
       if (result.length > 0) {
+        this.logger.log('First item from Pricempire:', JSON.stringify(result[0], null, 2));
         return result;
       }
       
@@ -67,24 +68,8 @@ export class PricempireService {
         this.logger.error(`Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`);
       }
 
-      // Return MOCK data so UI can be tested (50 items)
-      return Array.from({ length: 50 }).map((_, i) => ({
-        id: i + 1,
-        name: i < 5 ? [
-          '★ Kukri Knife | Crimson Web (Well-Worn)',
-          'Five-SeveN | Fairy Tale (Factory New)',
-          '★ Bowie Knife | Lore (Well-Worn)',
-          'Nova | Sobek\'s Bite (Factory New)',
-          'SG 553 | Colony IV (Factory New)'
-        ][i] : `Mock Item ${i + 1} | Random Skin`,
-        image: 'https://community.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf0ebcZThQ6tCvq4iYqPD1P7LdqWdY781lxO3C89Wmim2w_hZtNmn3LYfGdFU8M13UrFftxL_n0JW9vJ_PyXBgvXMj4n3D30vgw4lE9B4',
-        price: { 
-          csfloat: 10000 + i * 500, 
-          marketcsgo: 15000 + i * 700 
-        },
-        profit: 5000 + i * 200,
-        roi: 50 + (i % 10)
-      }));
+      // Return empty array instead of mock data
+      return [];
     }
   }
 }

@@ -29,7 +29,7 @@ export default function MarketPage() {
   };
 
   const getImageUrl = (url: string) => {
-    if (!url) return '';
+    if (!url) return '/placeholder.png';
     if (url.startsWith('http')) return url;
     return `https://community.steamstatic.com/economy/image/${url}`;
   };
@@ -106,7 +106,12 @@ export default function MarketPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
                             <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-dark-800">
-                              <img src={getImageUrl(item.image)} alt={item.name} className="h-full w-full object-contain" />
+                              <img 
+                                src={getImageUrl(item.image)} 
+                                alt={item.name} 
+                                className="h-full w-full object-contain"
+                                onError={(e) => { e.currentTarget.src = 'https://community.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpovbSsLQJf0ebcZThQ6tCvq4iYqPD1P7LdqWdY781lxO3C89Wmim2w_hZtNmn3LYfGdFU8M13UrFftxL_n0JW9vJ_PyXBgvXMj4n3D30vgw4lE9B4'; }}
+                              />
                             </div>
                             <div className="font-medium text-white group-hover:text-accent-blue transition-colors">
                               {item.name}

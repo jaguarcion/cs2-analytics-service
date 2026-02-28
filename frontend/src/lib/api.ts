@@ -187,6 +187,7 @@ export interface CreateManualItemDto {
   wear?: string;
   floatValue?: number;
   buyPrice: number;
+  commission?: number;
   customSource: string;
   purchaseDate: string;
   tradeBanDate?: string;
@@ -201,6 +202,7 @@ export async function createManualItem(data: CreateManualItemDto): Promise<any> 
 export interface CreateManualSaleDto {
   itemId: string;
   sellPrice: number;
+  commission?: number;
   customSource: string;
   saleDate: string;
 }
@@ -210,8 +212,13 @@ export async function createManualSale(data: CreateManualSaleDto): Promise<any> 
   return res;
 }
 
-export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string }): Promise<any> {
+export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string; commission?: number }): Promise<any> {
   const { data: res } = await api.put(`/manual/trades/${id}`, data);
+  return res;
+}
+
+export async function updateManualItem(id: string, data: { name?: string; wear?: string; floatValue?: number; customSource?: string }): Promise<any> {
+  const { data: res } = await api.put(`/manual/items/${id}`, data);
   return res;
 }
 

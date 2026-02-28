@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Trash2 } from 'lucide-react';
+import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Trash2, Edit } from 'lucide-react';
 import { deleteManualItem, deleteTrade, type TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
@@ -96,6 +96,7 @@ interface TradesTableProps {
   onBulkHide?: (ids: string[], hidden: boolean) => void;
   isHiddenView?: boolean;
   onReload?: () => void;
+  onEdit?: (trade: TradeItem) => void;
   defaultSortKey?: SortKey;
   defaultSortDir?: SortDir;
 }
@@ -134,7 +135,7 @@ function saveVisibleColumns(cols: Set<ColumnId>) {
   localStorage.setItem(LS_KEY, JSON.stringify(Array.from(cols)));
 }
 
-export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload, defaultSortKey, defaultSortDir }: TradesTableProps) {
+export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload, onEdit, defaultSortKey, defaultSortDir }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
@@ -646,6 +647,15 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                         >
                           {isHiddenView ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                         </button>
+                        {trade.platformSource === 'MANUAL' && type === 'BUY' && onEdit && (
+                          <button
+                            onClick={() => onEdit(trade)}
+                            className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-accent-blue"
+                            title="Редактировать"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         {trade.platformSource === 'MANUAL' && (
                           <button
                             onClick={() => handleDelete(trade)}

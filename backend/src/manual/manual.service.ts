@@ -8,6 +8,7 @@ export interface CreateManualItemDto {
   wear?: string;
   floatValue?: number;
   buyPrice: number;
+  commission?: number;
   currency?: string;
   customSource: string; // e.g. "Buff", "Waxpeer"
   purchaseDate: string; // ISO date
@@ -18,6 +19,7 @@ export interface CreateManualItemDto {
 export interface CreateManualSaleDto {
   itemId: string;
   sellPrice: number;
+  commission?: number;
   currency?: string;
   customSource: string; // e.g. "Buff"
   saleDate: string; // ISO date
@@ -76,6 +78,7 @@ export class ManualService {
         customSource: dto.customSource,
         itemId: item.id,
         buyPrice: dto.buyPrice,
+        commission: dto.commission ?? 0,
         type: 'BUY',
         status: tradeStatus,
         tradedAt: purchaseDate,
@@ -125,7 +128,7 @@ export class ManualService {
         customSource: dto.customSource,
         itemId: item.id,
         sellPrice: dto.sellPrice,
-        commission: 0, // Manual sale commission? User didn't specify. Assume 0 or let user edit later.
+        commission: dto.commission ?? 0,
         type: 'SELL',
         status: 'COMPLETED', // Sales are usually completed immediately if manual
         tradedAt: saleDate,
@@ -149,7 +152,7 @@ export class ManualService {
     return this.prisma.trade.delete({ where: { id: tradeId } });
   }
 
-  async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string }) {
+  async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string; commission?: number }) {
     const trade = await this.prisma.trade.findUnique({ where: { id: tradeId } });
     if (!trade) throw new Error('Trade not found');
 
@@ -164,9 +167,32 @@ export class ManualService {
     if (dto.customSource !== undefined) {
       data.customSource = dto.customSource;
     }
+    if (dto.commission !== undefined) {
+      data.commission = dto.commission;
+    }
 
     return this.prisma.trade.update({
       where: { id: tradeId },
+      data,
+    });
+  }
+
+  async updateItem(itemId: string, dto: { name?: string; wear?: string; floatValue?: number; customSource?: string }) {
+    const item = await this.prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) throw new Error('Item not found');
+
+    if (item.platformSource !== 'MANUAL') {
+      throw new Error('Cannot update non-manual item');
+    }
+
+    const data: any = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.wear !== undefined) data.wear = dto.wear;
+    if (dto.floatValue !== undefined) data.floatValue = dto.floatValue;
+    if (dto.customSource !== undefined) data.customSource = dto.customSource;
+
+    return this.prisma.item.update({
+      where: { id: itemId },
       data,
     });
   }

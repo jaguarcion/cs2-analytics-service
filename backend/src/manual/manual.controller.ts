@@ -17,8 +17,13 @@ export class ManualController {
   }
 
   @Put('trades/:id')
-  async updateTrade(@Param('id') id: string, @Body() dto: { price?: number; date?: string; customSource?: string }) {
+  async updateTrade(@Param('id') id: string, @Body() dto: { price?: number; date?: string; customSource?: string; commission?: number }) {
     return this.manualService.updateTrade(id, dto);
+  }
+
+  @Put('items/:id')
+  async updateItem(@Param('id') id: string, @Body() dto: { name?: string; wear?: string; floatValue?: number; customSource?: string }) {
+    return this.manualService.updateItem(id, dto);
   }
 
   @Delete('trades/:id')

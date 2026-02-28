@@ -2,39 +2,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createManualItem } from '@/lib/api';
+import { updateManualItem, updateTrade, type TradeItem } from '@/lib/api';
 import { X } from 'lucide-react';
 
-interface AddItemModalProps {
+interface EditItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  trade: TradeItem | null;
 }
 
-export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModalProps) {
+export default function EditItemModal({ isOpen, onClose, onSuccess, trade }: EditItemModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     wear: '',
     floatValue: '',
     buyPrice: '',
-    commission: '2',
-    customSource: 'Buff',
-    status: 'Trade Ban',
-    purchaseDate: new Date().toISOString().slice(0, 16),
-    tradeBanDate: '',
+    commission: '',
+    customSource: '',
   });
   const [loading, setLoading] = useState(false);
 
-  // Auto-calculate trade ban date when purchase date changes or status is Trade Ban
   useEffect(() => {
-    if (formData.status === 'Trade Ban' && formData.purchaseDate) {
-      const date = new Date(formData.purchaseDate);
-      date.setDate(date.getDate() + 7); // Default 7 days
-      setFormData(prev => ({ ...prev, tradeBanDate: date.toISOString().slice(0, 16) }));
+    if (trade && trade.item) {
+      setFormData({
+        name: trade.item.name || '',
+        wear: trade.item.wear || '',
+        floatValue: trade.item.floatValue?.toString() || '',
+        buyPrice: trade.buyPrice?.toString() || '',
+        commission: trade.commission?.toString() || '0',
+        customSource: trade.customSource || '',
+      });
     }
-  }, [formData.purchaseDate, formData.status]);
+  }, [trade]);
 
-  // Parse wear from name
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
     let wear = formData.wear;
@@ -52,48 +53,40 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!trade || !trade.item) return;
+
     setLoading(true);
     try {
-      await createManualItem({
+      await updateManualItem(trade.item.id, {
         name: formData.name,
         wear: formData.wear || undefined,
         floatValue: formData.floatValue ? parseFloat(formData.floatValue) : undefined,
-        buyPrice: parseFloat(formData.buyPrice),
-        commission: formData.commission ? parseFloat(formData.commission) : 0,
         customSource: formData.customSource,
-        purchaseDate: new Date(formData.purchaseDate).toISOString(),
-        tradeBanDate: formData.status === 'Trade Ban' && formData.tradeBanDate ? new Date(formData.tradeBanDate).toISOString() : undefined,
-        status: formData.status,
       });
+
+      await updateTrade(trade.id, {
+        price: parseFloat(formData.buyPrice),
+        customSource: formData.customSource,
+        commission: formData.commission ? parseFloat(formData.commission) : 0,
+      });
+
       onSuccess();
       onClose();
-      // Reset form
-      setFormData({
-        name: '',
-        wear: '',
-        floatValue: '',
-        buyPrice: '',
-        commission: '2',
-        customSource: 'Buff',
-        status: 'Trade Ban',
-        purchaseDate: new Date().toISOString().slice(0, 16),
-        tradeBanDate: '',
-      });
     } catch (error) {
-      console.error('Failed to create item:', error);
-      alert('Failed to create item');
+      console.error('Failed to update item:', error);
+      alert('Не удалось обновить предмет');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !trade) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl border border-dark-700 bg-dark-900 p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-dark-50">Добавить предмет</h2>
+          <h2 className="text-lg font-bold text-dark-50">Редактировать предмет</h2>
           <button onClick={onClose} className="text-dark-400 hover:text-white">
             <X className="h-5 w-5" />
           </button>
@@ -182,49 +175,12 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-dark-300">Статус</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
-            >
-              <option value="Trade Ban">Trade Ban (Трейд-бан)</option>
-              <option value="Tradable">Tradable (Доступен)</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-dark-300">Дата покупки</label>
-              <input
-                type="datetime-local"
-                required
-                value={formData.purchaseDate}
-                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
-              />
-            </div>
-            {formData.status === 'Trade Ban' && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-dark-300">Дата разбана</label>
-                <input
-                  type="datetime-local"
-                  required
-                  value={formData.tradeBanDate}
-                  onChange={(e) => setFormData({ ...formData, tradeBanDate: e.target.value })}
-                  className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
-                />
-              </div>
-            )}
-          </div>
-
           <button
             type="submit"
             disabled={loading}
             className="mt-4 w-full rounded-lg bg-accent-purple py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-purple/90 disabled:opacity-50"
           >
-            {loading ? 'Adding...' : 'Добавить предмет'}
+            {loading ? 'Сохранение...' : 'Сохранить изменения'}
           </button>
         </form>
       </div>

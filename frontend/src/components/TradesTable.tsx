@@ -647,7 +647,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                         >
                           {isHiddenView ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                         </button>
-                        {trade.platformSource === 'MANUAL' && type === 'BUY' && onEdit && (
+                        {trade.platformSource === 'MANUAL' && onEdit && (
                           <button
                             onClick={() => onEdit(trade)}
                             className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-accent-blue"

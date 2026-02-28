@@ -8,7 +8,6 @@ export interface CreateManualItemDto {
   wear?: string;
   floatValue?: number;
   buyPrice: number;
-  commission?: number;
   currency?: string;
   customSource: string; // e.g. "Buff", "Waxpeer"
   purchaseDate: string; // ISO date
@@ -78,7 +77,6 @@ export class ManualService {
         customSource: dto.customSource,
         itemId: item.id,
         buyPrice: dto.buyPrice,
-        commission: dto.commission ?? 0,
         type: 'BUY',
         status: tradeStatus,
         tradedAt: purchaseDate,

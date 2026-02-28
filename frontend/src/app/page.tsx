@@ -25,6 +25,7 @@ import LoginForm from '@/components/LoginForm';
 import AddItemModal from '@/components/AddItemModal';
 import AddSaleModal from '@/components/AddSaleModal';
 import EditItemModal from '@/components/EditItemModal';
+import EditSaleModal from '@/components/EditSaleModal';
 import {
   fetchSummary,
   fetchPurchases,
@@ -90,6 +91,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [isAddSaleOpen, setIsAddSaleOpen] = useState(false);
   const [isEditItemOpen, setIsEditItemOpen] = useState(false);
+  const [isEditSaleOpen, setIsEditSaleOpen] = useState(false);
   const [editingTrade, setEditingTrade] = useState<TradeItem | null>(null);
 
   const loadData = useCallback(async () => {
@@ -164,7 +166,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleEditItem = useCallback((trade: TradeItem) => {
     setEditingTrade(trade);
-    setIsEditItemOpen(true);
+    if (trade.type === 'BUY') {
+      setIsEditItemOpen(true);
+    } else {
+      setIsEditSaleOpen(true);
+    }
   }, []);
 
   // Filter trades by platform
@@ -456,12 +462,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               )}
               {group === 'sells' && subTab === 'csfloat_sell' && (
                 <div>
-                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
+                  <TradesTable trades={csfloatSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} onEdit={handleEditItem} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
               {group === 'sells' && subTab === 'market_sell' && (
                 <div>
-                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} defaultSortKey="tradeban" defaultSortDir="asc" />
+                  <TradesTable trades={marketSells} type="SELL" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} onEdit={handleEditItem} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
               {group === 'insale' && subTab === 'csfloat_insale' && (
@@ -493,6 +499,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <AddItemModal isOpen={isAddItemOpen} onClose={() => setIsAddItemOpen(false)} onSuccess={loadData} />
       <AddSaleModal isOpen={isAddSaleOpen} onClose={() => setIsAddSaleOpen(false)} onSuccess={loadData} items={[...inventory, ...thirdPartyItems]} />
       <EditItemModal isOpen={isEditItemOpen} onClose={() => setIsEditItemOpen(false)} onSuccess={loadData} trade={editingTrade} />
+      <EditSaleModal isOpen={isEditSaleOpen} onClose={() => setIsEditSaleOpen(false)} onSuccess={loadData} trade={editingTrade} />
     </div>
   );
 }

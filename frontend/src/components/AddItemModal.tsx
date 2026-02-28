@@ -17,7 +17,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
     wear: '',
     floatValue: '',
     buyPrice: '',
-    commission: '2',
     customSource: 'Buff',
     status: 'Trade Ban',
     purchaseDate: new Date().toISOString().slice(0, 16),
@@ -59,7 +58,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
         wear: formData.wear || undefined,
         floatValue: formData.floatValue ? parseFloat(formData.floatValue) : undefined,
         buyPrice: parseFloat(formData.buyPrice),
-        commission: formData.commission ? parseFloat(formData.commission) : 0,
         customSource: formData.customSource,
         purchaseDate: new Date(formData.purchaseDate).toISOString(),
         tradeBanDate: formData.status === 'Trade Ban' && formData.tradeBanDate ? new Date(formData.tradeBanDate).toISOString() : undefined,
@@ -73,7 +71,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
         wear: '',
         floatValue: '',
         buyPrice: '',
-        commission: '2',
         customSource: 'Buff',
         status: 'Trade Ban',
         purchaseDate: new Date().toISOString().slice(0, 16),
@@ -155,31 +152,16 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-dark-300">Комиссия (%)</label>
+              <label className="mb-1 block text-xs font-medium text-dark-300">Площадка (Source)</label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
+                type="text"
                 required
-                value={formData.commission}
-                onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
+                value={formData.customSource}
+                onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
                 className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
-                placeholder="2.00"
+                placeholder="Buff, Waxpeer..."
               />
             </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-dark-300">Площадка (Source)</label>
-            <input
-              type="text"
-              required
-              value={formData.customSource}
-              onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
-              className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
-              placeholder="Buff, Waxpeer..."
-            />
           </div>
 
           <div>

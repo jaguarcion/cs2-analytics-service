@@ -2,59 +2,57 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateTrade } from '@/lib/api';
+import { updateTrade, type TradeItem } from '@/lib/api';
 import { X } from 'lucide-react';
 
 interface EditSaleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  tradeId: string;
-  initialData: {
-    price: number;
-    customSource: string;
-    date: string;
-  };
+  trade: TradeItem | null;
 }
 
-export default function EditSaleModal({ isOpen, onClose, onSuccess, tradeId, initialData }: EditSaleModalProps) {
+export default function EditSaleModal({ isOpen, onClose, onSuccess, trade }: EditSaleModalProps) {
   const [formData, setFormData] = useState({
-    price: '',
+    sellPrice: '',
+    commission: '',
     customSource: '',
-    date: '',
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (trade) {
       setFormData({
-        price: initialData.price.toString(),
-        customSource: initialData.customSource || '',
-        date: initialData.date ? new Date(initialData.date).toISOString().slice(0, 16) : '',
+        sellPrice: trade.sellPrice?.toString() || '',
+        commission: trade.commission?.toString() || '5',
+        customSource: trade.customSource || '',
       });
     }
-  }, [isOpen, initialData]);
+  }, [trade]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!trade) return;
+
     setLoading(true);
     try {
-      await updateTrade(tradeId, {
-        price: parseFloat(formData.price),
+      await updateTrade(trade.id, {
+        price: parseFloat(formData.sellPrice),
+        commission: formData.commission ? parseFloat(formData.commission) : 0,
         customSource: formData.customSource,
-        date: new Date(formData.date).toISOString(),
       });
+
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Failed to update sale:', error);
-      alert('Failed to update sale');
+      alert('Не удалось обновить продажу');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !trade) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -67,6 +65,13 @@ export default function EditSaleModal({ isOpen, onClose, onSuccess, tradeId, ini
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-dark-300">Предмет</label>
+            <div className="rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-dark-400">
+              {trade.item?.name || '—'}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-dark-300">Цена продажи (USD)</label>
@@ -74,31 +79,37 @@ export default function EditSaleModal({ isOpen, onClose, onSuccess, tradeId, ini
                 type="number"
                 step="0.01"
                 required
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                value={formData.sellPrice}
+                onChange={(e) => setFormData({ ...formData, sellPrice: e.target.value })}
                 className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
+                placeholder="120.00"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-dark-300">Площадка</label>
+              <label className="mb-1 block text-xs font-medium text-dark-300">Комиссия (%)</label>
               <input
-                type="text"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
                 required
-                value={formData.customSource}
-                onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
+                value={formData.commission}
+                onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
                 className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
+                placeholder="5.00"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-dark-300">Дата продажи</label>
+            <label className="mb-1 block text-xs font-medium text-dark-300">Площадка (Source)</label>
             <input
-              type="datetime-local"
+              type="text"
               required
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              value={formData.customSource}
+              onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
               className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
+              placeholder="Buff, Waxpeer..."
             />
           </div>
 
@@ -107,7 +118,7 @@ export default function EditSaleModal({ isOpen, onClose, onSuccess, tradeId, ini
             disabled={loading}
             className="mt-4 w-full rounded-lg bg-accent-purple py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-purple/90 disabled:opacity-50"
           >
-            {loading ? 'Saving...' : 'Сохранить'}
+            {loading ? 'Сохранение...' : 'Сохранить изменения'}
           </button>
         </form>
       </div>

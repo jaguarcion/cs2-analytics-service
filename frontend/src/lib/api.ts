@@ -187,7 +187,6 @@ export interface CreateManualItemDto {
   wear?: string;
   floatValue?: number;
   buyPrice: number;
-  commission?: number;
   customSource: string;
   purchaseDate: string;
   tradeBanDate?: string;

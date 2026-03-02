@@ -187,8 +187,8 @@ export class AnalyticsService {
       orderBy: { fetchedAt: 'desc' },
     });
     const rubToUsd = fxRate && fxRate.rate > 0 ? 1 / fxRate.rate : 0;
-    const toUsd = (price: number, platform: string) =>
-      platform === 'MARKET_CSGO' ? price * rubToUsd : price;
+    const toUsd = (price: number, currency: string | null) =>
+      currency === 'RUB' ? price * rubToUsd : price;
 
     // Items available for sale (PENDING sells = on sale)
     const onSale = await this.prisma.trade.count({
@@ -205,7 +205,7 @@ export class AnalyticsService {
       },
     });
     const purchasesTotal = purchases.reduce(
-      (sum, t) => sum + toUsd(t.buyPrice || 0, t.platformSource),
+      (sum, t) => sum + toUsd(t.buyPrice || 0, t.currency),
       0,
     );
 

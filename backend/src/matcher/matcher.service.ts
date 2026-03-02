@@ -64,8 +64,8 @@ export class MatcherService {
 
   /**
    * Convert price to USD.
-   * CSFloat prices are already in USD.
-   * Market.CSGO prices are in RUB kopecks (divide by 100 for RUB, then convert).
+   * CSFloat and Market.CSGO prices are now in USD.
+   * Legacy: Market.CSGO used to be in RUB, but now switched to USD.
    */
   private async getRubToUsd(): Promise<number> {
     const fxRate = await this.prisma.fxRate.findFirst({
@@ -75,12 +75,13 @@ export class MatcherService {
     return fxRate && fxRate.rate > 0 ? 1 / fxRate.rate : 0;
   }
 
-  private toUsd(price: number, platform: string, rubToUsd: number): number {
-    if (platform === 'MARKET_CSGO') {
-      // Market.CSGO prices stored in RUB → multiply by rubToUsd
+  private toUsd(price: number, currency: string | null, rubToUsd: number): number {
+    // Convert based on currency field
+    if (currency === 'RUB') {
       return price * rubToUsd;
     }
-    return price; // CSFloat already in USD
+    // USD or null (default to USD)
+    return price;
   }
 
   /**
@@ -304,16 +305,10 @@ export class MatcherService {
   ) {
     if (!buy.buyPrice || !sell.sellPrice) return;
 
-    const buyPriceUsd = this.toUsd(buy.buyPrice, buy.platformSource, rubToUsd);
-    let sellPriceUsd = this.toUsd(sell.sellPrice, sell.platformSource, rubToUsd);
+    const buyPriceUsd = this.toUsd(buy.buyPrice, buy.currency, rubToUsd);
+    const sellPriceUsd = this.toUsd(sell.sellPrice, sell.currency, rubToUsd);
 
-    // Market.CSGO returns prices AFTER commission deduction.
-    // Add 5% back to get gross sale price, so commission math is consistent.
-    if (sell.platformSource === 'MARKET_CSGO') {
-      sellPriceUsd = sellPriceUsd * 1.05;
-    }
-
-    const commission = sell.commission || 0.02;
+    const commission = sell.commission || 0.05;
     const netSell = sellPriceUsd * (1 - commission);
     const profit = netSell - buyPriceUsd;
     const profitPercent = buyPriceUsd > 0 ? (profit / buyPriceUsd) * 100 : 0;

@@ -537,24 +537,7 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   )}
                   {show('price') && (
                     <td className="py-3 pr-4 font-medium whitespace-nowrap">
-                      {(() => {
-                        const price = type === 'BUY' ? (trade.buyPrice || 0) : (trade.sellPrice || 0);
-                        if (trade.platformSource === 'MARKET_CSGO') {
-                          const rubInt = Math.round(price);
-                          const usdEquiv = fxRate && fxRate > 0 ? price / fxRate : null;
-                          return (
-                            <div>
-                              <span>{rubInt.toLocaleString('ru-RU')} ₽</span>
-                              {usdEquiv !== null && (
-                                <span className="ml-1.5 text-xs text-dark-500">
-                                  ≈ {formatUSD(usdEquiv)}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        }
-                        return formatUSD(price);
-                      })()}
+                      {formatUSD(type === 'BUY' ? (trade.buyPrice || 0) : (trade.sellPrice || 0))}
                     </td>
                   )}
                   {show('platform') && (

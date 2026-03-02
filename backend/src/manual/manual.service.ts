@@ -77,6 +77,7 @@ export class ManualService {
         customSource: dto.customSource,
         itemId: item.id,
         buyPrice: dto.buyPrice,
+        currency: 'USD',
         type: 'BUY',
         status: tradeStatus,
         tradedAt: purchaseDate,
@@ -126,6 +127,7 @@ export class ManualService {
         customSource: dto.customSource,
         itemId: item.id,
         sellPrice: dto.sellPrice,
+        currency: 'USD',
         commission: dto.commission ?? 0,
         type: 'SELL',
         status: 'COMPLETED', // Sales are usually completed immediately if manual

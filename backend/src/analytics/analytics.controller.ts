@@ -238,6 +238,29 @@ export class AnalyticsController {
     return { updated: result.count, hidden };
   }
 
+  @Post('fix-market-currency')
+  async fixMarketCurrency() {
+    const result = await this.prisma.$executeRaw`
+      UPDATE trades
+      SET currency = 'RUB'
+      WHERE platform_source = 'MARKET_CSGO'
+        AND currency IS NULL
+    `;
+    
+    const count = await this.prisma.trade.count({
+      where: {
+        platformSource: 'MARKET_CSGO',
+        currency: 'RUB',
+      },
+    });
+    
+    return {
+      message: 'Market.CSGO currency fixed',
+      updated: result,
+      totalRubTrades: count,
+    };
+  }
+
   @Get('insale')
   async getInSale() {
     const steamId = this.config.get('CSFLOAT_STEAM_ID', '');

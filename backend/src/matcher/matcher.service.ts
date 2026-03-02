@@ -309,7 +309,11 @@ export class MatcherService {
     const sellPriceUsd = this.toUsd(sell.sellPrice, sell.currency, rubToUsd);
 
     const commission = sell.commission || 0.05;
-    const netSell = sellPriceUsd * (1 - commission);
+    // Market.CSGO returns price AFTER commission deduction, so netSell = sellPrice
+    // For other platforms, we need to subtract commission
+    const netSell = sell.platformSource === 'MARKET_CSGO' 
+      ? sellPriceUsd 
+      : sellPriceUsd * (1 - commission);
     const profit = netSell - buyPriceUsd;
     const profitPercent = buyPriceUsd > 0 ? (profit / buyPriceUsd) * 100 : 0;
 

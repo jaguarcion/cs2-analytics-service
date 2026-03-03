@@ -10,6 +10,15 @@ import {
   Package,
   BarChart3,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import PeriodSelector from '@/components/PeriodSelector';
 import {
   fetchDashboardStats,
@@ -24,6 +33,33 @@ function formatShortDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-dark-700 bg-dark-800 p-3 shadow-xl">
+        <p className="mb-2 text-sm font-medium text-dark-200">
+          {formatShortDate(label)}
+        </p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-dark-400">
+              {entry.name === 'purchases' ? 'Покупки' : 'Продажи'}:
+            </span>
+            <span className="font-semibold text-dark-50">
+              {formatUSD(entry.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function StatsPage() {
   const [authed, setAuthed] = useState(false);
@@ -211,34 +247,52 @@ function StatsContent() {
                   Нет данных за выбранный период
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <div className="flex items-end gap-1" style={{ minWidth: stats.chart.length * 48, height: 220 }}>
-                    {stats.chart.map((day) => {
-                      const pHeight = maxChartValue > 0 ? (day.purchases / maxChartValue) * 180 : 0;
-                      const sHeight = maxChartValue > 0 ? (day.sales / maxChartValue) * 180 : 0;
-                      const hasBoth = day.purchases > 0 || day.sales > 0;
-
-                      return (
-                        <div key={day.date} className="flex flex-1 flex-col items-center gap-1" style={{ minWidth: 40 }}>
-                          <div className="flex items-end gap-0.5" style={{ height: 180 }}>
-                            <div
-                              className="w-3 rounded-t bg-accent-blue transition-all hover:opacity-80"
-                              style={{ height: Math.max(pHeight, hasBoth ? 2 : 0) }}
-                              title={`Покупки: ${formatUSD(day.purchases)}`}
-                            />
-                            <div
-                              className="w-3 rounded-t bg-accent-green transition-all hover:opacity-80"
-                              style={{ height: Math.max(sHeight, hasBoth ? 2 : 0) }}
-                              title={`Продажи: ${formatUSD(day.sales)}`}
-                            />
-                          </div>
-                          <span className="text-[9px] text-dark-500 whitespace-nowrap">
-                            {formatShortDate(day.date)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={stats.chart}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#334155"
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatShortDate}
+                        stroke="#64748b"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        dy={10}
+                      />
+                      <YAxis
+                        tickFormatter={(value) => `${value}`}
+                        stroke="#64748b"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        dx={-10}
+                      />
+                      <Tooltip
+                        content={<CustomTooltip />}
+                        cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                      />
+                      <Bar
+                        dataKey="purchases"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      />
+                      <Bar
+                        dataKey="sales"
+                        fill="#22c55e"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </div>
@@ -248,3 +302,4 @@ function StatsContent() {
     </div>
   );
 }
+

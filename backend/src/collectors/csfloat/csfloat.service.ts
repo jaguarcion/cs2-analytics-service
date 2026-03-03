@@ -396,6 +396,7 @@ export class CsfloatService {
           update: {
             buyPrice: isBuyer ? priceUsd : null,
             sellPrice: !isBuyer ? priceUsd : null,
+            currency: 'USD',
             commission: 0.02,
             type: tradeType,
             status: tradeStatus,
@@ -408,6 +409,7 @@ export class CsfloatService {
             itemId: item.id,
             buyPrice: isBuyer ? priceUsd : null,
             sellPrice: !isBuyer ? priceUsd : null,
+            currency: 'USD',
             commission: 0.02,
             type: tradeType,
             status: tradeStatus,

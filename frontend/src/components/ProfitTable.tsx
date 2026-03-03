@@ -197,11 +197,24 @@ export default function ProfitTable({ entries, onReload }: ProfitTableProps) {
           isOpen={!!editEntry}
           onClose={() => setEditEntry(null)}
           onSuccess={() => { setEditEntry(null); onReload?.(); }}
-          tradeId={editEntry.sellTradeId}
-          initialData={{
-            price: editEntry.sellPrice,
-            customSource: editEntry.sellCustomSource || '',
-            date: editEntry.sellDate || '',
+          trade={{
+            id: editEntry.sellTradeId,
+            externalId: '',
+            platformSource: editEntry.sellPlatform as any,
+            customSource: editEntry.sellCustomSource,
+            buyPrice: null,
+            sellPrice: editEntry.sellPrice,
+            commission: editEntry.commission,
+            type: 'SELL',
+            status: 'COMPLETED',
+            tradedAt: editEntry.sellDate || new Date().toISOString(),
+            item: {
+              id: '',
+              name: editEntry.itemName,
+              wear: null,
+              floatValue: null,
+              imageUrl: editEntry.imageUrl,
+            },
           }}
         />
       )}

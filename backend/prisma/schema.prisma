@@ -78,6 +78,7 @@ model Trade {
   itemId          String         @map("item_id") @db.VarChar(36)
   buyPrice        Float?         @map("buy_price")
   sellPrice       Float?         @map("sell_price")
+  currency        String?        @db.VarChar(10)
   commission      Float?         @default(0)
   status          TradeStatus    @default(PENDING)
   tradeUnlockAt   DateTime?      @map("trade_unlock_at")

@@ -16,6 +16,7 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
   const [formData, setFormData] = useState({
     itemId: '',
     sellPrice: '',
+    commission: '5',
     customSource: 'Buff',
     saleDate: new Date().toISOString().slice(0, 16),
   });
@@ -57,6 +58,7 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
       await createManualSale({
         itemId: formData.itemId,
         sellPrice: parseFloat(formData.sellPrice),
+        commission: formData.commission ? parseFloat(formData.commission) : 0,
         customSource: formData.customSource,
         saleDate: new Date(formData.saleDate).toISOString(),
       });
@@ -66,6 +68,7 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
       setFormData({
         itemId: '',
         sellPrice: '',
+        commission: '5',
         customSource: 'Buff',
         saleDate: new Date().toISOString().slice(0, 16),
       });
@@ -164,16 +167,31 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-dark-300">Площадка</label>
+              <label className="mb-1 block text-xs font-medium text-dark-300">Комиссия (%)</label>
               <input
-                type="text"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
                 required
-                value={formData.customSource}
-                onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
+                value={formData.commission}
+                onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
                 className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
-                placeholder="Buff..."
+                placeholder="5.00"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-dark-300">Площадка</label>
+            <input
+              type="text"
+              required
+              value={formData.customSource}
+              onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
+              className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
+              placeholder="Buff..."
+            />
           </div>
 
           <div>

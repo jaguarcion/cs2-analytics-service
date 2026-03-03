@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { MarketInSaleItem } from '@/lib/api';
+import { formatUSD } from '@/lib/utils';
 
 type SortKey = 'name' | 'price' | 'createdAt' | 'float';
 type SortDir = 'asc' | 'desc';
@@ -54,10 +55,6 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
 
     const totalValue = items.reduce((sum, i) => sum + i.price, 0);
 
-    function formatRUB(value: number): string {
-        return value.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' ₽';
-    }
-
     function timeSince(dateStr: string): string {
         const diff = Date.now() - new Date(dateStr).getTime();
         const days = Math.floor(diff / (24 * 60 * 60 * 1000));
@@ -76,7 +73,7 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
                 </div>
                 <div>
                     <span className="text-xs text-dark-500">Общая стоимость</span>
-                    <p className="text-lg font-semibold text-accent-blue">{formatRUB(totalValue)}</p>
+                    <p className="text-lg font-semibold text-accent-blue">{formatUSD(totalValue)}</p>
                 </div>
             </div>
 
@@ -137,7 +134,7 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
                                 </td>
                                 {/* Price */}
                                 <td className="px-4 py-3 font-medium text-dark-100">
-                                    {formatRUB(item.price)}
+                                    {formatUSD(item.price)}
                                 </td>
                                 {/* Listed at */}
                                 <td className="px-4 py-3 text-dark-400 text-xs whitespace-nowrap">

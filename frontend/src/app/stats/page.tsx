@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -9,10 +9,16 @@ import {
   TrendingUp,
   Package,
   BarChart3,
+  BarChart as BarChartIcon,
+  Activity,
+  CalendarDays,
+  ListPlus,
 } from 'lucide-react';
 import {
   BarChart,
   Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -34,12 +40,13 @@ function formatShortDate(dateStr: string): string {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, dataView }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border border-dark-700 bg-dark-800 p-3 shadow-xl">
         <p className="mb-2 text-sm font-medium text-dark-200">
           {formatShortDate(label)}
+          {dataView === 'cumulative' && <span className="ml-1 text-xs text-dark-500">(Накопительно)</span>}
         </p>
         {payload.map((entry: any, index: number) => (
           <div key={index} className="flex items-center gap-2 text-sm">
@@ -81,6 +88,10 @@ function StatsContent() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Chart Controls State
+  const [chartType, setChartType] = useState<'bar' | 'area'>('bar');
+  const [dataView, setDataView] = useState<'daily' | 'cumulative'>('daily');
+
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
@@ -97,9 +108,27 @@ function StatsContent() {
     loadStats();
   }, [loadStats]);
 
-  const maxChartValue = stats
-    ? Math.max(...stats.chart.map((d) => Math.max(d.purchases, d.sales)), 1)
-    : 1;
+  const processedChartData = useMemo(() => {
+    if (!stats) return [];
+
+    if (dataView === 'daily') {
+      return stats.chart;
+    }
+
+    // Cumulative calculation
+    let currentPurchases = 0;
+    let currentSales = 0;
+
+    return stats.chart.map(day => {
+      currentPurchases += day.purchases;
+      currentSales += day.sales;
+      return {
+        ...day,
+        purchases: currentPurchases,
+        sales: currentSales
+      };
+    });
+  }, [stats, dataView]);
 
   return (
     <div className="min-h-screen bg-dark-950">
@@ -226,72 +255,183 @@ function StatsContent() {
 
             {/* Chart */}
             <div className="rounded-xl border border-dark-700/50 bg-dark-800/50 p-6">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-dark-100">
-                  Покупки и продажи по дням
-                </h2>
-                <div className="flex items-center gap-4 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-2.5 w-2.5 rounded-sm bg-accent-blue" />
-                    <span className="text-dark-400">Покупки</span>
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-dark-100">
+                    Динамика торговли
+                  </h2>
+                  <div className="mt-2 flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-sm bg-accent-blue" />
+                      <span className="text-dark-400">Покупки</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-sm bg-accent-green" />
+                      <span className="text-dark-400">Продажи</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-2.5 w-2.5 rounded-sm bg-accent-green" />
-                    <span className="text-dark-400">Продажи</span>
+                </div>
+
+                {/* Chart Controls */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center rounded-lg border border-dark-700 bg-dark-800/50 p-1">
+                    <button
+                      onClick={() => setDataView('daily')}
+                      className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${dataView === 'daily'
+                          ? 'bg-dark-700 text-dark-50'
+                          : 'text-dark-400 hover:text-dark-200'
+                        }`}
+                    >
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">По дням</span>
+                    </button>
+                    <button
+                      onClick={() => setDataView('cumulative')}
+                      className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${dataView === 'cumulative'
+                          ? 'bg-dark-700 text-dark-50'
+                          : 'text-dark-400 hover:text-dark-200'
+                        }`}
+                    >
+                      <ListPlus className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Накопительно</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center rounded-lg border border-dark-700 bg-dark-800/50 p-1">
+                    <button
+                      onClick={() => setChartType('bar')}
+                      className={`rounded-md p-1.5 transition-colors ${chartType === 'bar'
+                          ? 'bg-dark-700 text-dark-50'
+                          : 'text-dark-400 hover:text-dark-200'
+                        }`}
+                      title="Столбцы"
+                    >
+                      <BarChartIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setChartType('area')}
+                      className={`rounded-md p-1.5 transition-colors ${chartType === 'area'
+                          ? 'bg-dark-700 text-dark-50'
+                          : 'text-dark-400 hover:text-dark-200'
+                        }`}
+                      title="Пульс (Линии)"
+                    >
+                      <Activity className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {stats.chart.length === 0 ? (
+              {processedChartData.length === 0 ? (
                 <div className="flex items-center justify-center py-12 text-dark-500">
                   Нет данных за выбранный период
                 </div>
               ) : (
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={stats.chart}
-                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#334155"
-                      />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatShortDate}
-                        stroke="#64748b"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        dy={10}
-                      />
-                      <YAxis
-                        tickFormatter={(value) => `${value}`}
-                        stroke="#64748b"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        dx={-10}
-                      />
-                      <Tooltip
-                        content={<CustomTooltip />}
-                        cursor={{ fill: '#1e293b', opacity: 0.4 }}
-                      />
-                      <Bar
-                        dataKey="purchases"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={40}
-                      />
-                      <Bar
-                        dataKey="sales"
-                        fill="#22c55e"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={40}
-                      />
-                    </BarChart>
+                    {chartType === 'bar' ? (
+                      <BarChart
+                        data={processedChartData}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="#334155"
+                        />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={formatShortDate}
+                          stroke="#64748b"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          dy={10}
+                        />
+                        <YAxis
+                          tickFormatter={(value) => `${value}`}
+                          stroke="#64748b"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          dx={-10}
+                        />
+                        <Tooltip
+                          content={<CustomTooltip dataView={dataView} />}
+                          cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                        />
+                        <Bar
+                          dataKey="purchases"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                        <Bar
+                          dataKey="sales"
+                          fill="#22c55e"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                      </BarChart>
+                    ) : (
+                      <AreaChart
+                        data={processedChartData}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorPurchases" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="#334155"
+                        />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={formatShortDate}
+                          stroke="#64748b"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          dy={10}
+                        />
+                        <YAxis
+                          tickFormatter={(value) => `${value}`}
+                          stroke="#64748b"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          dx={-10}
+                        />
+                        <Tooltip
+                          content={<CustomTooltip dataView={dataView} />}
+                          cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="purchases"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorPurchases)"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="sales"
+                          stroke="#22c55e"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorSales)"
+                        />
+                      </AreaChart>
+                    )}
                   </ResponsiveContainer>
                 </div>
               )}

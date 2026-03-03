@@ -85,6 +85,8 @@ export default function StatsPage() {
 function StatsContent() {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>('month');
+  const [customFrom, setCustomFrom] = useState<string>('');
+  const [customTo, setCustomTo] = useState<string>('');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,14 +97,17 @@ function StatsContent() {
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchDashboardStats({ period });
+      const params = period === 'custom' && customFrom && customTo
+        ? { period, from: customFrom, to: customTo }
+        : { period };
+      const data = await fetchDashboardStats(params);
       setStats(data);
     } catch (error) {
       console.error('Failed to load stats:', error);
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, customFrom, customTo]);
 
   useEffect(() => {
     loadStats();
@@ -148,7 +153,13 @@ function StatsContent() {
                 <p className="text-xs text-dark-500">Обзор торговли</p>
               </div>
             </div>
-            <PeriodSelector value={period} onChange={setPeriod} />
+            <PeriodSelector
+              value={period}
+              onChange={(p) => { setPeriod(p); setCustomFrom(''); setCustomTo(''); }}
+              onCustomRange={(from, to) => { setCustomFrom(from); setCustomTo(to); setPeriod('custom'); }}
+              customFrom={customFrom}
+              customTo={customTo}
+            />
           </div>
         </div>
       </header>
@@ -278,8 +289,8 @@ function StatsContent() {
                     <button
                       onClick={() => setDataView('daily')}
                       className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${dataView === 'daily'
-                          ? 'bg-dark-700 text-dark-50'
-                          : 'text-dark-400 hover:text-dark-200'
+                        ? 'bg-dark-700 text-dark-50'
+                        : 'text-dark-400 hover:text-dark-200'
                         }`}
                     >
                       <CalendarDays className="h-3.5 w-3.5" />
@@ -288,8 +299,8 @@ function StatsContent() {
                     <button
                       onClick={() => setDataView('cumulative')}
                       className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${dataView === 'cumulative'
-                          ? 'bg-dark-700 text-dark-50'
-                          : 'text-dark-400 hover:text-dark-200'
+                        ? 'bg-dark-700 text-dark-50'
+                        : 'text-dark-400 hover:text-dark-200'
                         }`}
                     >
                       <ListPlus className="h-3.5 w-3.5" />
@@ -301,8 +312,8 @@ function StatsContent() {
                     <button
                       onClick={() => setChartType('bar')}
                       className={`rounded-md p-1.5 transition-colors ${chartType === 'bar'
-                          ? 'bg-dark-700 text-dark-50'
-                          : 'text-dark-400 hover:text-dark-200'
+                        ? 'bg-dark-700 text-dark-50'
+                        : 'text-dark-400 hover:text-dark-200'
                         }`}
                       title="Столбцы"
                     >
@@ -311,8 +322,8 @@ function StatsContent() {
                     <button
                       onClick={() => setChartType('area')}
                       className={`rounded-md p-1.5 transition-colors ${chartType === 'area'
-                          ? 'bg-dark-700 text-dark-50'
-                          : 'text-dark-400 hover:text-dark-200'
+                        ? 'bg-dark-700 text-dark-50'
+                        : 'text-dark-400 hover:text-dark-200'
                         }`}
                       title="Пульс (Линии)"
                     >

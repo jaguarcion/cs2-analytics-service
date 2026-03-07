@@ -305,9 +305,7 @@ export class AnalyticsService {
         return false;
       }
 
-      // COMPLETED: check if tradeUnlockAt is still active
-      if (t.tradeUnlockAt && t.tradeUnlockAt.getTime() > now) return false;
-
+      // COMPLETED: All items are considered available right away
       return true;
     });
   }
@@ -334,8 +332,8 @@ export class AnalyticsService {
       // Skip matched trades (already sold)
       if (matchedBuyIds.has(t.id)) return false;
 
-      // Manual COMPLETED items are considered instantly tradable → not banned
-      if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return false;
+      // COMPLETED items are considered instantly tradable -> not banned
+      if (t.status === 'COMPLETED') return false;
 
       // TRADE_HOLD status without tradeUnlockAt → show as banned (no date data)
       if (t.status === 'TRADE_HOLD' && !t.tradeUnlockAt) return true;

@@ -19,17 +19,31 @@ export default function EditItemModal({ isOpen, onClose, onSuccess, trade }: Edi
     floatValue: '',
     buyPrice: '',
     customSource: '',
+    status: 'Tradable',
+    tradeBanDate: '',
   });
   const [loading, setLoading] = useState(false);
 
+  const toLocalInputValue = (value?: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().slice(0, 16);
+  };
+
   useEffect(() => {
     if (trade && trade.item) {
+      const isTradeBan = !!trade.tradeUnlockAt && new Date(trade.tradeUnlockAt).getTime() > Date.now();
+
       setFormData({
         name: trade.item.name || '',
         wear: trade.item.wear || '',
         floatValue: trade.item.floatValue?.toString() || '',
         buyPrice: trade.buyPrice?.toString() || '',
         customSource: trade.customSource || '',
+        status: isTradeBan ? 'Trade Ban' : 'Tradable',
+        tradeBanDate: toLocalInputValue(trade.tradeUnlockAt),
       });
     }
   }, [trade]);
@@ -65,6 +79,10 @@ export default function EditItemModal({ isOpen, onClose, onSuccess, trade }: Edi
       await updateTrade(trade.id, {
         price: parseFloat(formData.buyPrice),
         customSource: formData.customSource,
+        status: formData.status,
+        tradeBanDate: formData.status === 'Trade Ban' && formData.tradeBanDate
+          ? new Date(formData.tradeBanDate).toISOString()
+          : null,
       });
 
       onSuccess();
@@ -153,6 +171,30 @@ export default function EditItemModal({ isOpen, onClose, onSuccess, trade }: Edi
                 onChange={(e) => setFormData({ ...formData, customSource: e.target.value })}
                 className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
                 placeholder="Buff, Waxpeer..."
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-dark-300">Статус</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
+              >
+                <option value="Tradable">Tradable (Доступен)</option>
+                <option value="Trade Ban">Trade Ban (Трейд-бан)</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-dark-300">Дата разбана</label>
+              <input
+                type="datetime-local"
+                value={formData.tradeBanDate}
+                onChange={(e) => setFormData({ ...formData, tradeBanDate: e.target.value })}
+                disabled={formData.status !== 'Trade Ban'}
+                className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>

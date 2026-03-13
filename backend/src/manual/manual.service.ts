@@ -152,7 +152,10 @@ export class ManualService {
     return this.prisma.trade.delete({ where: { id: tradeId } });
   }
 
-  async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string; commission?: number }) {
+  async updateTrade(
+    tradeId: string,
+    dto: { price?: number; date?: string; customSource?: string; commission?: number; tradeBanDate?: string | null; status?: string },
+  ) {
     const trade = await this.prisma.trade.findUnique({ where: { id: tradeId } });
     if (!trade) throw new Error('Trade not found');
 
@@ -169,6 +172,29 @@ export class ManualService {
     }
     if (dto.commission !== undefined) {
       data.commission = dto.commission;
+    }
+
+    const hasTradeBanDate = Object.prototype.hasOwnProperty.call(dto, 'tradeBanDate');
+    const hasStatus = Object.prototype.hasOwnProperty.call(dto, 'status');
+
+    if (trade.type === 'BUY' && (hasTradeBanDate || hasStatus)) {
+      const nextStatus = dto.status ?? null;
+
+      if (hasTradeBanDate) {
+        data.tradeUnlockAt = dto.tradeBanDate ? new Date(dto.tradeBanDate) : null;
+      }
+
+      if (nextStatus === 'Tradable') {
+        data.status = 'COMPLETED';
+        if (!hasTradeBanDate) {
+          data.tradeUnlockAt = null;
+        }
+      } else if (nextStatus === 'Trade Ban') {
+        data.status = 'TRADE_HOLD';
+      } else if (hasTradeBanDate) {
+        const unlockAt = dto.tradeBanDate ? new Date(dto.tradeBanDate) : null;
+        data.status = unlockAt && unlockAt.getTime() > Date.now() ? 'TRADE_HOLD' : 'COMPLETED';
+      }
     }
 
     return this.prisma.trade.update({

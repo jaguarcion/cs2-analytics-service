@@ -5,7 +5,7 @@ import { Eye, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { InSaleItem } from '@/lib/api';
 import { formatUSD } from '@/lib/utils';
 
-type SortKey = 'name' | 'price' | 'referencePrice' | 'diff' | 'watchers' | 'createdAt' | 'float';
+type SortKey = 'name' | 'buyPrice' | 'price' | 'referencePrice' | 'diff' | 'watchers' | 'createdAt' | 'float';
 type SortDir = 'asc' | 'desc';
 
 export default function InSaleTable({ items }: { items: InSaleItem[] }) {
@@ -32,6 +32,8 @@ export default function InSaleTable({ items }: { items: InSaleItem[] }) {
                         : b.name.localeCompare(a.name);
                 case 'price':
                     va = a.price; vb = b.price; break;
+                case 'buyPrice':
+                    va = a.buyPrice ?? 0; vb = b.buyPrice ?? 0; break;
                 case 'referencePrice':
                     va = a.referencePrice ?? 0; vb = b.referencePrice ?? 0; break;
                 case 'diff':
@@ -99,6 +101,11 @@ export default function InSaleTable({ items }: { items: InSaleItem[] }) {
                             <th className="px-4 py-3 font-medium">
                                 <button onClick={() => toggleSort('float')} className="inline-flex items-center gap-1 hover:text-dark-200">
                                     Float <SortIcon col="float" />
+                                </button>
+                            </th>
+                            <th className="px-4 py-3 font-medium">
+                                <button onClick={() => toggleSort('buyPrice')} className="inline-flex items-center gap-1 hover:text-dark-200">
+                                    Цена покупки <SortIcon col="buyPrice" />
                                 </button>
                             </th>
                             <th className="px-4 py-3 font-medium">
@@ -174,6 +181,9 @@ export default function InSaleTable({ items }: { items: InSaleItem[] }) {
                                     <td className="px-4 py-3 text-dark-300 font-mono text-xs">
                                         {item.floatValue != null ? item.floatValue.toFixed(10) : '—'}
                                     </td>
+                                    <td className="px-4 py-3 font-medium text-dark-300">
+                                        {item.buyPrice != null ? formatUSD(item.buyPrice) : '—'}
+                                    </td>
                                     {/* Price */}
                                     <td className="px-4 py-3 font-medium text-dark-100">
                                         {formatUSD(item.price)}
@@ -217,7 +227,7 @@ export default function InSaleTable({ items }: { items: InSaleItem[] }) {
                         })}
                         {sortedItems.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="py-12 text-center text-dark-500">
+                                <td colSpan={8} className="py-12 text-center text-dark-500">
                                     Нет предметов в продаже
                                 </td>
                             </tr>

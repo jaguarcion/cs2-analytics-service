@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CsfloatService } from '../collectors/csfloat/csfloat.service';
 import { MarketCsgoService } from '../collectors/market-csgo/market-csgo.service';
 import { NotificationService } from '../notification/notification.service';
+import { MatcherService } from '../matcher/matcher.service';
+import { NormalizerService } from '../normalizer/normalizer.service';
 import axios from 'axios';
 
 @Controller('analytics')
@@ -18,7 +20,54 @@ export class AnalyticsController {
     private readonly marketCsgoService: MarketCsgoService,
     private readonly config: ConfigService,
     private readonly notificationService: NotificationService,
+    private readonly matcherService: MatcherService,
+    private readonly normalizerService: NormalizerService,
   ) { }
+
+  private async getOpenBuyTrades() {
+    const matchedBuyIds = await this.matcherService.getMatchedBuyIds();
+    const buyTrades = await this.prisma.trade.findMany({
+      where: {
+        type: 'BUY',
+        hidden: false,
+        status: { in: ['COMPLETED', 'TRADE_HOLD', 'ACCEPTED'] },
+      },
+      include: { item: true },
+      orderBy: { tradedAt: 'desc' },
+    });
+
+    return buyTrades.filter((trade) => !matchedBuyIds.has(trade.id) && trade.buyPrice !== null);
+  }
+
+  private resolveBuyPrice(
+    buyTrades: Awaited<ReturnType<AnalyticsController['getOpenBuyTrades']>>,
+    item: { name: string; floatValue?: number | null; assetId?: string | null },
+  ): number | null {
+    if (item.assetId) {
+      const assetMatch = buyTrades.find((trade) => trade.item.assetId === item.assetId);
+      if (assetMatch?.buyPrice != null) {
+        return assetMatch.buyPrice;
+      }
+    }
+
+    const normalizedName = this.normalizerService.normalizeName(item.name);
+    const sameNameTrades = buyTrades.filter(
+      (trade) => this.normalizerService.normalizeName(trade.item.name) === normalizedName,
+    );
+
+    if (item.floatValue != null) {
+      const floatMatch = sameNameTrades.find(
+        (trade) =>
+          trade.item.floatValue != null &&
+          Math.abs(trade.item.floatValue - item.floatValue!) < 0.0000001,
+      );
+      if (floatMatch?.buyPrice != null) {
+        return floatMatch.buyPrice;
+      }
+    }
+
+    return sameNameTrades.length === 1 ? sameNameTrades[0].buyPrice : null;
+  }
 
   @Post('test-notification')
   async testNotification(
@@ -269,6 +318,7 @@ export class AnalyticsController {
     }
 
     try {
+      const buyTrades = await this.getOpenBuyTrades();
       const response = await axios.get(
         `https://csfloat.com/api/v1/users/${steamId}/stall`,
         { timeout: 15000 },
@@ -276,35 +326,42 @@ export class AnalyticsController {
 
       const data = response.data?.data || [];
 
-      return data.map((listing: any) => ({
-        id: listing.id,
-        name: listing.item?.market_hash_name || 'Unknown',
-        itemName: listing.item?.item_name || '',
-        wear: listing.item?.wear_name || null,
-        floatValue: listing.item?.float_value || null,
-        price: listing.price / 100, // cents → USD
-        referencePrice: listing.reference?.predicted_price
-          ? listing.reference.predicted_price / 100
-          : null,
-        basePrice: listing.reference?.base_price
-          ? listing.reference.base_price / 100
-          : null,
-        quantity: listing.reference?.quantity || null,
-        watchers: listing.watchers || 0,
-        createdAt: listing.created_at,
-        imageUrl: listing.item?.icon_url
-          ? `https://community.akamai.steamstatic.com/economy/image/${listing.item.icon_url}`
-          : null,
-        isStattrak: listing.item?.is_stattrak || false,
-        isSouvenir: listing.item?.is_souvenir || false,
-        type: listing.item?.type || 'skin',
-        rarity: listing.item?.rarity_name || null,
-        collection: listing.item?.collection || null,
-        stickers: listing.item?.stickers?.map((s: any) => ({
-          name: s.name,
-          iconUrl: s.icon_url,
-        })) || [],
-      }));
+      return data.map((listing: any) => {
+        const name = listing.item?.market_hash_name || 'Unknown';
+        const floatValue = listing.item?.float_value || null;
+        const assetId = listing.item?.asset_id || null;
+
+        return {
+          id: listing.id,
+          name,
+          itemName: listing.item?.item_name || '',
+          wear: listing.item?.wear_name || null,
+          floatValue,
+          buyPrice: this.resolveBuyPrice(buyTrades, { name, floatValue, assetId }),
+          price: listing.price / 100,
+          referencePrice: listing.reference?.predicted_price
+            ? listing.reference.predicted_price / 100
+            : null,
+          basePrice: listing.reference?.base_price
+            ? listing.reference.base_price / 100
+            : null,
+          quantity: listing.reference?.quantity || null,
+          watchers: listing.watchers || 0,
+          createdAt: listing.created_at,
+          imageUrl: listing.item?.icon_url
+            ? `https://community.akamai.steamstatic.com/economy/image/${listing.item.icon_url}`
+            : null,
+          isStattrak: listing.item?.is_stattrak || false,
+          isSouvenir: listing.item?.is_souvenir || false,
+          type: listing.item?.type || 'skin',
+          rarity: listing.item?.rarity_name || null,
+          collection: listing.item?.collection || null,
+          stickers: listing.item?.stickers?.map((s: any) => ({
+            name: s.name,
+            iconUrl: s.icon_url,
+          })) || [],
+        };
+      });
     } catch (error) {
       console.error('Failed to fetch CSFloat stall:', error.message);
       return [];
@@ -314,6 +371,7 @@ export class AnalyticsController {
   @Get('market-insale')
   async getMarketInSale() {
     try {
+      const buyTrades = await this.getOpenBuyTrades();
       const trades = await this.marketCsgoService.fetchActiveTrades();
 
       // Get IDs of items already sold on Market.CSGO (COMPLETED / TRADE_HOLD)
@@ -335,7 +393,12 @@ export class AnalyticsController {
         itemName: trade.market_hash_name.replace(/\s*\([^)]+\)\s*$/, ''),
         wear: parseWearFromMarketName(trade.market_hash_name),
         floatValue: trade.float || null,
-        price: trade.price, // RUB
+        buyPrice: this.resolveBuyPrice(buyTrades, {
+          name: trade.market_hash_name,
+          floatValue: trade.float || null,
+          assetId: trade.asset_id || null,
+        }),
+        price: trade.price,
         currency: 'RUB',
         createdAt: trade.created_at || new Date().toISOString(),
         imageUrl: trade.class_id

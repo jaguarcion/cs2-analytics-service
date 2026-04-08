@@ -219,6 +219,12 @@ export class AnalyticsService {
 
     const totalBuy = filteredMatched.reduce((s, t) => s + t.buyPrice, 0);
     const totalProfit = filteredMatched.reduce((s, t) => s + t.profit, 0);
+    const marketProfit = filteredMatched
+      .filter((t) => t.sellPlatform === 'MARKET_CSGO')
+      .reduce((s, t) => s + t.profit, 0);
+    const otherProfit = filteredMatched
+      .filter((t) => t.sellPlatform !== 'MARKET_CSGO')
+      .reduce((s, t) => s + t.profit, 0);
     const avgProfitPercent = totalBuy > 0 ? (totalProfit / totalBuy) * 100 : 0;
 
     // Sales from Matched Trades (per user request)
@@ -265,6 +271,8 @@ export class AnalyticsService {
       avgProfitPercent: parseFloat(avgProfitPercent.toFixed(2)),
       matchedCount: filteredMatched.length,
       totalProfit: parseFloat(totalProfit.toFixed(2)),
+      marketProfit: parseFloat(marketProfit.toFixed(2)),
+      otherProfit: parseFloat(otherProfit.toFixed(2)),
       fxRate: fxRate ? fxRate.rate : null,
       chart: days,
     };

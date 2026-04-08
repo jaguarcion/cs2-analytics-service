@@ -142,6 +142,8 @@ export interface DashboardStats {
   avgProfitPercent: number;
   matchedCount: number;
   totalProfit: number;
+  marketProfit: number;
+  otherProfit: number;
   fxRate: number | null;
   chart: { date: string; purchases: number; sales: number }[];
 }

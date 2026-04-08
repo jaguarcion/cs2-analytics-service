@@ -13,6 +13,8 @@ export interface AnalyticsSummary {
   totalSales: number;
   salesCount: number;
   totalProfit: number;
+  marketProfit: number;
+  otherProfit: number;
   profitPercent: number;
   fxRate: { pair: string; rate: number; fetchedAt: Date } | null;
 }
@@ -110,6 +112,12 @@ export class AnalyticsService {
     });
 
     const totalProfit = filteredMatched.reduce((sum, t) => sum + t.profit, 0);
+    const marketProfit = filteredMatched
+      .filter((t) => t.sellPlatform === 'MARKET_CSGO')
+      .reduce((sum, t) => sum + t.profit, 0);
+    const otherProfit = filteredMatched
+      .filter((t) => t.sellPlatform !== 'MARKET_CSGO')
+      .reduce((sum, t) => sum + t.profit, 0);
     const totalBuyForProfit = filteredMatched.reduce((sum, t) => sum + t.buyPrice, 0);
     const profitPercent = totalBuyForProfit > 0 ? (totalProfit / totalBuyForProfit) * 100 : 0;
 
@@ -125,6 +133,8 @@ export class AnalyticsService {
       totalSales: parseFloat(totalSales.toFixed(2)),
       salesCount: salesCount,
       totalProfit: parseFloat(totalProfit.toFixed(2)),
+      marketProfit: parseFloat(marketProfit.toFixed(2)),
+      otherProfit: parseFloat(otherProfit.toFixed(2)),
       profitPercent: parseFloat(profitPercent.toFixed(2)),
       fxRate: fxRate ? { pair: fxRate.pair, rate: fxRate.rate, fetchedAt: fxRate.fetchedAt } : null,
     };

@@ -35,6 +35,8 @@ export interface AnalyticsSummary {
   totalSales: number;
   salesCount: number;
   totalProfit: number;
+  marketProfit: number;
+  otherProfit: number;
   profitPercent: number;
   fxRate: { pair: string; rate: number; fetchedAt: string } | null;
 }

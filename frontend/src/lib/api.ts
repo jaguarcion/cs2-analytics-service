@@ -37,6 +37,8 @@ export interface AnalyticsSummary {
   totalProfit: number;
   marketProfit: number;
   otherProfit: number;
+  marketProfitPercent: number;
+  otherProfitPercent: number;
   profitPercent: number;
   fxRate: { pair: string; rate: number; fetchedAt: string } | null;
 }
@@ -146,6 +148,8 @@ export interface DashboardStats {
   totalProfit: number;
   marketProfit: number;
   otherProfit: number;
+  marketProfitPercent: number;
+  otherProfitPercent: number;
   fxRate: number | null;
   chart: { date: string; purchases: number; sales: number }[];
 }

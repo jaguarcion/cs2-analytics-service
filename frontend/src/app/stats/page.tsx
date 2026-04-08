@@ -246,7 +246,9 @@ function StatsContent() {
                 <p className={`mt-2 text-3xl font-bold ${stats.marketProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
                   {formatUSD(stats.marketProfit)}
                 </p>
-                <p className="mt-1 text-xs text-dark-500">только Market.CSGO</p>
+                <p className="mt-1 text-xs text-dark-500">
+                  {`${formatPercent(stats.marketProfitPercent)} · только Market.CSGO`}
+                </p>
               </div>
 
               {/* Profit Other */}
@@ -260,7 +262,9 @@ function StatsContent() {
                 <p className={`mt-2 text-3xl font-bold ${stats.otherProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
                   {formatUSD(stats.otherProfit)}
                 </p>
-                <p className="mt-1 text-xs text-dark-500">все площадки, кроме Market.CSGO</p>
+                <p className="mt-1 text-xs text-dark-500">
+                  {`${formatPercent(stats.otherProfitPercent)} · все площадки, кроме Market.CSGO`}
+                </p>
               </div>
             </div>
 

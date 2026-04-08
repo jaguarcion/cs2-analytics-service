@@ -291,7 +291,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             title="Profit Market"
             value={summary ? formatUSD(summary.marketProfit) : '—'}
             subtitle={
-              'только Market.CSGO'
+              summary
+                ? `${formatPercent(summary.marketProfitPercent)} · только Market.CSGO`
+                : ''
             }
             icon={<TrendingUp className="h-5 w-5" />}
             trend={
@@ -305,7 +307,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           <StatCard
             title="Profit Other"
             value={summary ? formatUSD(summary.otherProfit) : '—'}
-            subtitle={'все площадки, кроме Market.CSGO'}
+            subtitle={
+              summary
+                ? `${formatPercent(summary.otherProfitPercent)} · все площадки, кроме Market.CSGO`
+                : ''
+            }
             icon={<DollarSign className="h-5 w-5" />}
             trend={
               summary

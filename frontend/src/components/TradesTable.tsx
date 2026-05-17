@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Trash2, Edit } from 'lucide-react';
+import { EyeOff, Eye, Search, X, ChevronDown, Check, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Trash2, Edit, Unlock } from 'lucide-react';
 import { deleteManualItem, deleteTrade, type TradeItem } from '@/lib/api';
 import { formatUSD, formatRUB, formatDate, platformLabel } from '@/lib/utils';
 
@@ -97,6 +97,7 @@ interface TradesTableProps {
   isHiddenView?: boolean;
   onReload?: () => void;
   onEdit?: (trade: TradeItem) => void;
+  onReleaseBan?: (tradeId: string) => void;
   defaultSortKey?: SortKey;
   defaultSortDir?: SortDir;
 }
@@ -135,7 +136,7 @@ function saveVisibleColumns(cols: Set<ColumnId>) {
   localStorage.setItem(LS_KEY, JSON.stringify(Array.from(cols)));
 }
 
-export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload, onEdit, defaultSortKey, defaultSortDir }: TradesTableProps) {
+export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulkHide, isHiddenView, onReload, onEdit, onReleaseBan, defaultSortKey, defaultSortDir }: TradesTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
@@ -623,6 +624,15 @@ export default function TradesTable({ trades, type, fxRate, onToggleHide, onBulk
                   {onToggleHide && (
                     <td className="py-3">
                       <div className="flex items-center gap-1">
+                        {onReleaseBan && (
+                          <button
+                            onClick={() => onReleaseBan(trade.id)}
+                            className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-accent-green"
+                            title="Перенести в Инвентарь (снять трейд-бан)"
+                          >
+                            <Unlock className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => onToggleHide(trade.id)}
                           className="rounded p-1 text-dark-500 transition-colors hover:bg-dark-700 hover:text-dark-300"

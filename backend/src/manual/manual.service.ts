@@ -22,6 +22,7 @@ export interface CreateManualSaleDto {
   currency?: string;
   customSource: string; // e.g. "Buff"
   saleDate: string; // ISO date
+  profitBucket?: string; // "MARKET" | "OTHER"
 }
 
 @Injectable()
@@ -119,6 +120,11 @@ export class ManualService {
 
     const saleDate = new Date(dto.saleDate);
 
+    const profitBucket =
+      dto.profitBucket === 'MARKET' || dto.profitBucket === 'OTHER'
+        ? dto.profitBucket
+        : 'OTHER';
+
     // Create SELL Trade
     const trade = await this.prisma.trade.create({
       data: {
@@ -132,10 +138,28 @@ export class ManualService {
         type: 'SELL',
         status: 'COMPLETED', // Sales are usually completed immediately if manual
         tradedAt: saleDate,
+        profitBucket,
       },
     });
 
     return trade;
+  }
+
+  async linkBuyToSell(sellTradeId: string, buyTradeId: string | null) {
+    const sell = await this.prisma.trade.findUnique({ where: { id: sellTradeId } });
+    if (!sell) throw new Error('Sell trade not found');
+    if (sell.type !== 'SELL') throw new Error('Trade is not a SELL');
+
+    if (buyTradeId) {
+      const buy = await this.prisma.trade.findUnique({ where: { id: buyTradeId } });
+      if (!buy) throw new Error('Buy trade not found');
+      if (buy.type !== 'BUY') throw new Error('Linked trade is not a BUY');
+    }
+
+    return this.prisma.trade.update({
+      where: { id: sellTradeId },
+      data: { manualBuyTradeId: buyTradeId },
+    });
   }
 
   async getManualItems() {
@@ -152,7 +176,7 @@ export class ManualService {
     return this.prisma.trade.delete({ where: { id: tradeId } });
   }
 
-  async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string; commission?: number }) {
+  async updateTrade(tradeId: string, dto: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: string }) {
     const trade = await this.prisma.trade.findUnique({ where: { id: tradeId } });
     if (!trade) throw new Error('Trade not found');
 
@@ -169,6 +193,11 @@ export class ManualService {
     }
     if (dto.commission !== undefined) {
       data.commission = dto.commission;
+    }
+    if (dto.profitBucket !== undefined) {
+      data.profitBucket = dto.profitBucket === 'MARKET' || dto.profitBucket === 'OTHER'
+        ? dto.profitBucket
+        : null;
     }
 
     return this.prisma.trade.update({

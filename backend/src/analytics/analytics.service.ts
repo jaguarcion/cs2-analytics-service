@@ -357,4 +357,40 @@ export class AnalyticsService {
     });
     return logs;
   }
+
+  async getBuyCandidatesForSell(sellTradeId: string, query?: string) {
+    const sell = await this.prisma.trade.findUnique({
+      where: { id: sellTradeId },
+      include: { item: true },
+    });
+    if (!sell) return [];
+
+    const matchedBuyIds = await this.matcher.getMatchedBuyIds();
+    const buyTrades = await this.prisma.trade.findMany({
+      where: {
+        type: 'BUY',
+        hidden: false,
+        status: { in: ['COMPLETED', 'TRADE_HOLD'] },
+      },
+      include: { item: true },
+      orderBy: { tradedAt: 'desc' },
+    });
+
+    // Available = unmatched + the one currently linked to this sell
+    const currentlyLinkedBuyId = sell.manualBuyTradeId ?? null;
+    const candidates = buyTrades.filter(
+      (t) => !matchedBuyIds.has(t.id) || t.id === currentlyLinkedBuyId,
+    );
+
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? candidates.filter((t) => t.item?.name?.toLowerCase().includes(q))
+      : candidates;
+
+    return {
+      currentBuyTradeId: currentlyLinkedBuyId,
+      sellItemName: sell.item?.name ?? null,
+      candidates: filtered.slice(0, 100),
+    };
+  }
 }

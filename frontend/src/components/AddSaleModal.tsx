@@ -19,6 +19,7 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
     commission: '5',
     customSource: 'Buff',
     saleDate: new Date().toISOString().slice(0, 16),
+    profitBucket: 'OTHER' as 'MARKET' | 'OTHER',
   });
   const [loading, setLoading] = useState(false);
   
@@ -61,6 +62,7 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
         commission: formData.commission ? parseFloat(formData.commission) : 0,
         customSource: formData.customSource,
         saleDate: new Date(formData.saleDate).toISOString(),
+        profitBucket: formData.profitBucket,
       });
       onSuccess();
       onClose();
@@ -71,6 +73,7 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
         commission: '5',
         customSource: 'Buff',
         saleDate: new Date().toISOString().slice(0, 16),
+        profitBucket: 'OTHER',
       });
       setSearchQuery('');
     } catch (error) {
@@ -203,6 +206,29 @@ export default function AddSaleModal({ isOpen, onClose, onSuccess, items }: AddS
               onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
               className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2 text-sm text-white focus:border-accent-purple focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-dark-300">Куда отнести профит</label>
+            <div className="flex gap-2">
+              {([
+                { value: 'MARKET', label: 'Profit Market' },
+                { value: 'OTHER', label: 'Profit Other' },
+              ] as const).map((opt) => (
+                <button
+                  type="button"
+                  key={opt.value}
+                  onClick={() => setFormData({ ...formData, profitBucket: opt.value })}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    formData.profitBucket === opt.value
+                      ? 'border-accent-purple bg-accent-purple/10 text-accent-purple'
+                      : 'border-dark-700 bg-dark-800 text-dark-300 hover:border-dark-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button

@@ -17,8 +17,16 @@ export class ManualController {
   }
 
   @Put('trades/:id')
-  async updateTrade(@Param('id') id: string, @Body() dto: { price?: number; date?: string; customSource?: string; commission?: number }) {
+  async updateTrade(@Param('id') id: string, @Body() dto: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: string }) {
     return this.manualService.updateTrade(id, dto);
+  }
+
+  @Post('sales/:sellTradeId/link-buy')
+  async linkBuy(
+    @Param('sellTradeId') sellTradeId: string,
+    @Body() body: { buyTradeId: string | null },
+  ) {
+    return this.manualService.linkBuyToSell(sellTradeId, body?.buyTradeId ?? null);
   }
 
   @Put('items/:id')

@@ -51,6 +51,8 @@ export interface TradeItem {
   status: string;
   tradedAt: string;
   tradeUnlockAt?: string | null;
+  manualBuyTradeId?: string | null;
+  profitBucket?: 'MARKET' | 'OTHER' | null;
   item?: {
     id: string;
     name: string;
@@ -65,6 +67,8 @@ export interface ProfitEntry {
   buyTradeId: string;
   itemName: string;
   imageUrl: string | null;
+  floatValue: number | null;
+  wear: string | null;
   buyPrice: number;
   sellPrice: number;
   commission: number;
@@ -75,6 +79,8 @@ export interface ProfitEntry {
   sellPlatform: string;
   buyCustomSource: string | null;
   sellCustomSource: string | null;
+  profitBucket: 'MARKET' | 'OTHER';
+  manuallyLinked: boolean;
   buyDate: string | null;
   sellDate: string | null;
 }
@@ -130,6 +136,29 @@ export async function toggleTradeHidden(tradeId: string): Promise<{ id: string; 
 
 export async function bulkSetHidden(ids: string[], hidden: boolean): Promise<{ updated: number; hidden: boolean }> {
   const { data } = await api.post('/analytics/trades/bulk-hide', { ids, hidden });
+  return data;
+}
+
+export async function releaseTradeBan(tradeId: string): Promise<{ id: string; status: string }> {
+  const { data } = await api.post(`/analytics/trades/${tradeId}/release-ban`);
+  return data;
+}
+
+export interface BuyCandidatesResponse {
+  currentBuyTradeId: string | null;
+  sellItemName: string | null;
+  candidates: TradeItem[];
+}
+
+export async function fetchBuyCandidates(sellTradeId: string, q?: string): Promise<BuyCandidatesResponse> {
+  const { data } = await api.get(`/analytics/profit/${sellTradeId}/buy-candidates`, {
+    params: q ? { q } : {},
+  });
+  return data;
+}
+
+export async function linkBuyToSell(sellTradeId: string, buyTradeId: string | null): Promise<any> {
+  const { data } = await api.post(`/manual/sales/${sellTradeId}/link-buy`, { buyTradeId });
   return data;
 }
 
@@ -204,6 +233,7 @@ export interface CreateManualSaleDto {
   commission?: number;
   customSource: string;
   saleDate: string;
+  profitBucket?: 'MARKET' | 'OTHER';
 }
 
 export async function createManualSale(data: CreateManualSaleDto): Promise<any> {
@@ -211,7 +241,7 @@ export async function createManualSale(data: CreateManualSaleDto): Promise<any> 
   return res;
 }
 
-export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string; commission?: number }): Promise<any> {
+export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: 'MARKET' | 'OTHER' }): Promise<any> {
   const { data: res } = await api.put(`/manual/trades/${id}`, data);
   return res;
 }

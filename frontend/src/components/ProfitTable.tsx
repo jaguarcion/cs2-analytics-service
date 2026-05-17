@@ -1,7 +1,7 @@
-import { Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { useState, useMemo } from 'react';
-import type { ProfitEntry } from '@/lib/api';
-import { deleteTrade } from '@/lib/api';
+import { Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Link2, X, Search } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import type { ProfitEntry, TradeItem } from '@/lib/api';
+import { deleteTrade, fetchBuyCandidates, linkBuyToSell } from '@/lib/api';
 import EditSaleModal from '@/components/EditSaleModal';
 import { formatUSD, formatPercent, formatDate, platformLabel } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ type SortDir = 'asc' | 'desc';
 
 export default function ProfitTable({ entries, onReload }: ProfitTableProps) {
   const [editEntry, setEditEntry] = useState<ProfitEntry | null>(null);
+  const [linkEntry, setLinkEntry] = useState<ProfitEntry | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('sellDate');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -74,6 +75,8 @@ export default function ProfitTable({ entries, onReload }: ProfitTableProps) {
         <thead>
           <tr className="border-b border-dark-700/50 text-left text-dark-400">
             <th className="pb-3 pr-4 font-medium">Предмет</th>
+            <th className="pb-3 pr-4 font-medium">Float</th>
+            <th className="pb-3 pr-4 font-medium">Bucket</th>
             <th className="pb-3 pr-4 font-medium">Площадки</th>
             <th className="pb-3 pr-4 font-medium cursor-pointer select-none" onClick={() => toggleSort('buyPrice')}>
               Покупка<SortIcon col="buyPrice" />
@@ -122,10 +125,38 @@ export default function ProfitTable({ entries, onReload }: ProfitTableProps) {
                       ?
                     </div>
                   )}
-                  <span className="font-medium text-dark-50">
-                    {entry.itemName}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-dark-50">
+                      {entry.itemName}
+                    </span>
+                    {entry.wear && (
+                      <span className="text-[10px] text-dark-500">{entry.wear}</span>
+                    )}
+                  </div>
+                  {entry.manuallyLinked && (
+                    <span
+                      title="Сделка привязана вручную"
+                      className="rounded bg-accent-purple/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-purple"
+                    >
+                      ручн.
+                    </span>
+                  )}
                 </div>
+              </td>
+              <td className="py-3 pr-4 font-mono text-xs text-dark-400">
+                {entry.floatValue != null ? entry.floatValue.toFixed(8) : '—'}
+              </td>
+              <td className="py-3 pr-4">
+                <span
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                    entry.profitBucket === 'MARKET'
+                      ? 'bg-accent-blue/10 text-accent-blue'
+                      : 'bg-dark-700 text-dark-300',
+                  )}
+                >
+                  {entry.profitBucket === 'MARKET' ? 'Market' : 'Other'}
+                </span>
               </td>
               <td className="py-3 pr-4">
                 <div className="flex items-center gap-1 text-[10px]">
@@ -172,6 +203,13 @@ export default function ProfitTable({ entries, onReload }: ProfitTableProps) {
               <td className="py-3 text-right">
                 <div className="flex justify-end gap-1">
                   <button
+                    onClick={() => setLinkEntry(entry)}
+                    className="p-1.5 rounded-lg text-dark-400 hover:bg-dark-700 hover:text-accent-purple transition-colors"
+                    title="Перепривязать товар к покупке"
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
                     onClick={() => setEditEntry(entry)}
                     className="p-1.5 rounded-lg text-dark-400 hover:bg-dark-700 hover:text-accent-blue transition-colors"
                     title="Редактировать"
@@ -207,17 +245,178 @@ export default function ProfitTable({ entries, onReload }: ProfitTableProps) {
             commission: editEntry.commission,
             type: 'SELL',
             status: 'COMPLETED',
+            profitBucket: editEntry.profitBucket,
             tradedAt: editEntry.sellDate || new Date().toISOString(),
             item: {
               id: '',
               name: editEntry.itemName,
-              wear: null,
-              floatValue: null,
+              wear: editEntry.wear,
+              floatValue: editEntry.floatValue,
               imageUrl: editEntry.imageUrl,
             },
           }}
         />
       )}
+
+      {linkEntry && (
+        <LinkBuyModal
+          entry={linkEntry}
+          onClose={() => setLinkEntry(null)}
+          onSuccess={() => { setLinkEntry(null); onReload?.(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function LinkBuyModal({
+  entry,
+  onClose,
+  onSuccess,
+}: {
+  entry: ProfitEntry;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [candidates, setCandidates] = useState<TradeItem[]>([]);
+  const [currentBuyId, setCurrentBuyId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const searchRef = useRef<NodeJS.Timeout | null>(null);
+
+  const load = async (q?: string) => {
+    setLoading(true);
+    try {
+      const data = await fetchBuyCandidates(entry.sellTradeId, q);
+      setCandidates(data.candidates);
+      setCurrentBuyId(data.currentBuyTradeId);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (searchRef.current) clearTimeout(searchRef.current);
+    searchRef.current = setTimeout(() => {
+      load(search);
+    }, 250);
+    return () => {
+      if (searchRef.current) clearTimeout(searchRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  const handleLink = async (buyTradeId: string | null) => {
+    setSaving(true);
+    try {
+      await linkBuyToSell(entry.sellTradeId, buyTradeId);
+      onSuccess();
+    } catch (e) {
+      console.error(e);
+      alert('Не удалось привязать BUY');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-xl border border-dark-700 bg-dark-900 p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-dark-50">Привязать покупку</h2>
+            <p className="text-xs text-dark-500">Продажа: {entry.itemName}</p>
+          </div>
+          <button onClick={onClose} className="text-dark-400 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dark-500" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск по названию покупки..."
+            className="w-full rounded-lg border border-dark-700 bg-dark-800 py-2 pl-9 pr-3 text-sm text-dark-100 placeholder-dark-500 outline-none focus:border-accent-purple"
+          />
+        </div>
+
+        <div className="max-h-[400px] overflow-y-auto rounded-lg border border-dark-700">
+          {loading ? (
+            <div className="py-8 text-center text-sm text-dark-500">Загрузка...</div>
+          ) : candidates.length === 0 ? (
+            <div className="py-8 text-center text-sm text-dark-500">Нет доступных покупок</div>
+          ) : (
+            candidates.map((b) => {
+              const isCurrent = b.id === currentBuyId;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  disabled={saving}
+                  onClick={() => handleLink(b.id)}
+                  className={cn(
+                    'flex w-full items-center gap-3 border-b border-dark-700/50 px-3 py-2 text-left text-sm transition-colors last:border-0 hover:bg-dark-700/50',
+                    isCurrent && 'bg-accent-purple/10',
+                  )}
+                >
+                  {b.item?.imageUrl ? (
+                    <img
+                      src={
+                        b.item.imageUrl.startsWith('http')
+                          ? b.item.imageUrl
+                          : `https://community.steamstatic.com/economy/image/${b.item.imageUrl}/96fx96f`
+                      }
+                      alt={b.item.name}
+                      className="h-8 w-12 flex-shrink-0 rounded object-contain bg-dark-700/50"
+                    />
+                  ) : (
+                    <div className="h-8 w-12 flex-shrink-0 rounded bg-dark-700/50" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium text-dark-100">{b.item?.name || '—'}</div>
+                    <div className="mt-0.5 flex gap-2 text-[10px] text-dark-500">
+                      <span>{b.item?.wear || '—'}</span>
+                      {b.item?.floatValue != null && <span>float: {b.item.floatValue.toFixed(6)}</span>}
+                      <span>{platformLabel(b.platformSource)}{b.customSource ? ` · ${b.customSource}` : ''}</span>
+                      <span>{formatDate(b.tradedAt)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-dark-200">
+                    {b.buyPrice != null ? formatUSD(b.buyPrice) : '—'}
+                  </div>
+                  {isCurrent && (
+                    <span className="rounded bg-accent-purple/20 px-1.5 py-0.5 text-[10px] font-medium text-accent-purple">
+                      текущая
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {currentBuyId && (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handleLink(null)}
+            className="mt-3 w-full rounded-lg border border-dark-700 bg-dark-800 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-700 disabled:opacity-50"
+          >
+            Снять ручную привязку (вернуться к авто-матчингу)
+          </button>
+        )}
+      </div>
     </div>
   );
 }

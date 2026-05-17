@@ -115,6 +115,8 @@ export class MatcherService {
       buyTradeId: string;
       itemName: string;
       imageUrl: string | null;
+      floatValue: number | null;
+      wear: string | null;
       buyPrice: number;
       sellPrice: number;
       commission: number;
@@ -125,6 +127,8 @@ export class MatcherService {
       sellPlatform: string;
       buyCustomSource: string | null;
       sellCustomSource: string | null;
+      profitBucket: string;
+      manuallyLinked: boolean;
       buyDate: Date | null;
       sellDate: Date | null;
     }> = [];
@@ -142,6 +146,19 @@ export class MatcherService {
       trade: s,
       norm: this.normalizer.normalizeItem(s.item),
     }));
+    const buyById = new Map(buyTrades.map((b) => [b.id, b]));
+
+    // --- Pass -1: Manual buy link (explicit user override) ---
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      const manualBuyId = (sell.trade as any).manualBuyTradeId as string | null;
+      if (!manualBuyId) continue;
+      const buy = buyById.get(manualBuyId);
+      if (!buy || usedBuyIds.has(buy.id)) continue;
+      usedBuyIds.add(buy.id);
+      usedSellIds.add(sell.trade.id);
+      this.pushMatch(matched, buy, sell.trade, rubToUsd, true);
+    }
 
     // --- Pass 0: Match by same Item ID (explicit link) ---
     for (const sell of sellNorms) {
@@ -250,6 +267,18 @@ export class MatcherService {
       trade: s,
       norm: this.normalizer.normalizeItem(s.item),
     }));
+    const buyById = new Map(buyTrades.map((b) => [b.id, b]));
+
+    // Pass -1: manual buy link (explicit override)
+    for (const sell of sellNorms) {
+      if (usedSellIds.has(sell.trade.id)) continue;
+      const manualBuyId = (sell.trade as any).manualBuyTradeId as string | null;
+      if (!manualBuyId) continue;
+      const buy = buyById.get(manualBuyId);
+      if (!buy || usedBuyIds.has(buy.id)) continue;
+      usedBuyIds.add(buy.id);
+      usedSellIds.add(sell.trade.id);
+    }
 
     // Pass 0: same item ID
     for (const sell of sellNorms) {
@@ -302,6 +331,7 @@ export class MatcherService {
     buy: any,
     sell: any,
     rubToUsd: number,
+    manuallyLinked: boolean = false,
   ) {
     if (!buy.buyPrice || !sell.sellPrice) return;
 
@@ -315,11 +345,27 @@ export class MatcherService {
     const profit = netSell - buyPriceUsd;
     const profitPercent = buyPriceUsd > 0 ? (profit / buyPriceUsd) * 100 : 0;
 
+    // Float / wear: prefer SELL item, fallback to BUY
+    const floatValue =
+      sell.item.floatValue != null ? sell.item.floatValue : buy.item.floatValue ?? null;
+    const wear = sell.item.wear ?? buy.item.wear ?? null;
+
+    // Profit bucket: explicit field on sell trade, fallback by platform
+    const explicitBucket = (sell as any).profitBucket as string | null | undefined;
+    const profitBucket =
+      explicitBucket && (explicitBucket === 'MARKET' || explicitBucket === 'OTHER')
+        ? explicitBucket
+        : sell.platformSource === 'MANUAL'
+          ? 'OTHER'
+          : 'MARKET';
+
     matched.push({
       sellTradeId: sell.id,
       buyTradeId: buy.id,
       itemName: sell.item.name,
       imageUrl: sell.item.imageUrl || buy.item.imageUrl || null,
+      floatValue,
+      wear,
       buyPrice: parseFloat(buyPriceUsd.toFixed(2)),
       sellPrice: parseFloat(sellPriceUsd.toFixed(2)),
       commission,
@@ -330,6 +376,8 @@ export class MatcherService {
       sellPlatform: sell.platformSource,
       buyCustomSource: buy.customSource || null,
       sellCustomSource: sell.customSource || null,
+      profitBucket,
+      manuallyLinked,
       buyDate: buy.tradedAt,
       sellDate: sell.tradedAt,
     });

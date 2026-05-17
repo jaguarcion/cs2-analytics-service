@@ -39,6 +39,7 @@ import {
   triggerFullSync,
   fetchInSale,
   fetchMarketInSale,
+  releaseTradeBan,
   type AnalyticsSummary,
   type TradeItem,
   type ProfitEntry,
@@ -167,6 +168,16 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       loadData();
     } catch (error) {
       console.error('Failed to bulk hide:', error);
+    }
+  }, [loadData]);
+
+  const handleReleaseBan = useCallback(async (tradeId: string) => {
+    try {
+      await releaseTradeBan(tradeId);
+      loadData();
+    } catch (error) {
+      console.error('Failed to release trade ban:', error);
+      alert('Не удалось перенести предмет в инвентарь');
     }
   }, [loadData]);
 
@@ -503,7 +514,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
               {group === 'other' && subTab === 'third_party' && (
                 <div>
-                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} onEdit={handleEditItem} defaultSortKey="tradeban" defaultSortDir="asc" />
+                  <TradesTable trades={thirdPartyItems} type="BUY" fxRate={summary?.fxRate?.rate} onToggleHide={handleToggleHide} onBulkHide={handleBulkHide} onReload={loadData} onEdit={handleEditItem} onReleaseBan={handleReleaseBan} defaultSortKey="tradeban" defaultSortDir="asc" />
                 </div>
               )}
               {group === 'other' && subTab === 'inventory' && (

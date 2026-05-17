@@ -212,6 +212,33 @@ export class AnalyticsController {
     };
   }
 
+  @Post('trades/:id/release-ban')
+  async releaseTradeBan(@Param('id') id: string) {
+    const trade = await this.prisma.trade.findUnique({ where: { id } });
+    if (!trade) {
+      return { error: 'Trade not found' };
+    }
+    if (trade.type !== 'BUY') {
+      return { error: 'Only BUY trades can be released from ban' };
+    }
+    const updated = await this.prisma.trade.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+        tradeUnlockAt: null,
+      },
+    });
+    return { id: updated.id, status: updated.status };
+  }
+
+  @Get('profit/:sellTradeId/buy-candidates')
+  async getBuyCandidates(
+    @Param('sellTradeId') sellTradeId: string,
+    @Query('q') q?: string,
+  ) {
+    return this.analyticsService.getBuyCandidatesForSell(sellTradeId, q);
+  }
+
   @Post('trades/:id/toggle-hide')
   async toggleHide(@Param('id') id: string) {
     const trade = await this.prisma.trade.findUnique({ where: { id } });

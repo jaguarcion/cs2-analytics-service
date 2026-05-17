@@ -13,6 +13,10 @@ export interface AnalyticsSummary {
   totalSales: number;
   salesCount: number;
   totalProfit: number;
+  marketProfit: number;
+  otherProfit: number;
+  marketProfitPercent: number;
+  otherProfitPercent: number;
   profitPercent: number;
   fxRate: { pair: string; rate: number; fetchedAt: Date } | null;
 }
@@ -110,8 +114,22 @@ export class AnalyticsService {
     });
 
     const totalProfit = filteredMatched.reduce((sum, t) => sum + t.profit, 0);
+    const marketProfit = filteredMatched
+      .filter((t) => t.sellPlatform === 'MARKET_CSGO')
+      .reduce((sum, t) => sum + t.profit, 0);
+    const otherProfit = filteredMatched
+      .filter((t) => t.sellPlatform !== 'MARKET_CSGO')
+      .reduce((sum, t) => sum + t.profit, 0);
+    const marketBuyTotal = filteredMatched
+      .filter((t) => t.sellPlatform === 'MARKET_CSGO')
+      .reduce((sum, t) => sum + t.buyPrice, 0);
+    const otherBuyTotal = filteredMatched
+      .filter((t) => t.sellPlatform !== 'MARKET_CSGO')
+      .reduce((sum, t) => sum + t.buyPrice, 0);
     const totalBuyForProfit = filteredMatched.reduce((sum, t) => sum + t.buyPrice, 0);
     const profitPercent = totalBuyForProfit > 0 ? (totalProfit / totalBuyForProfit) * 100 : 0;
+    const marketProfitPercent = marketBuyTotal > 0 ? (marketProfit / marketBuyTotal) * 100 : 0;
+    const otherProfitPercent = otherBuyTotal > 0 ? (otherProfit / otherBuyTotal) * 100 : 0;
 
     // Sales (from matched trades only, per user request)
     const totalSales = filteredMatched.reduce((sum, t) => sum + t.sellPrice, 0);
@@ -125,6 +143,10 @@ export class AnalyticsService {
       totalSales: parseFloat(totalSales.toFixed(2)),
       salesCount: salesCount,
       totalProfit: parseFloat(totalProfit.toFixed(2)),
+      marketProfit: parseFloat(marketProfit.toFixed(2)),
+      otherProfit: parseFloat(otherProfit.toFixed(2)),
+      marketProfitPercent: parseFloat(marketProfitPercent.toFixed(2)),
+      otherProfitPercent: parseFloat(otherProfitPercent.toFixed(2)),
       profitPercent: parseFloat(profitPercent.toFixed(2)),
       fxRate: fxRate ? { pair: fxRate.pair, rate: fxRate.rate, fetchedAt: fxRate.fetchedAt } : null,
     };
@@ -219,7 +241,21 @@ export class AnalyticsService {
 
     const totalBuy = filteredMatched.reduce((s, t) => s + t.buyPrice, 0);
     const totalProfit = filteredMatched.reduce((s, t) => s + t.profit, 0);
+    const marketProfit = filteredMatched
+      .filter((t) => t.sellPlatform === 'MARKET_CSGO')
+      .reduce((s, t) => s + t.profit, 0);
+    const otherProfit = filteredMatched
+      .filter((t) => t.sellPlatform !== 'MARKET_CSGO')
+      .reduce((s, t) => s + t.profit, 0);
+    const marketBuyTotal = filteredMatched
+      .filter((t) => t.sellPlatform === 'MARKET_CSGO')
+      .reduce((s, t) => s + t.buyPrice, 0);
+    const otherBuyTotal = filteredMatched
+      .filter((t) => t.sellPlatform !== 'MARKET_CSGO')
+      .reduce((s, t) => s + t.buyPrice, 0);
     const avgProfitPercent = totalBuy > 0 ? (totalProfit / totalBuy) * 100 : 0;
+    const marketProfitPercent = marketBuyTotal > 0 ? (marketProfit / marketBuyTotal) * 100 : 0;
+    const otherProfitPercent = otherBuyTotal > 0 ? (otherProfit / otherBuyTotal) * 100 : 0;
 
     // Sales from Matched Trades (per user request)
     const salesTotal = filteredMatched.reduce((s, t) => s + t.sellPrice, 0);
@@ -265,6 +301,10 @@ export class AnalyticsService {
       avgProfitPercent: parseFloat(avgProfitPercent.toFixed(2)),
       matchedCount: filteredMatched.length,
       totalProfit: parseFloat(totalProfit.toFixed(2)),
+      marketProfit: parseFloat(marketProfit.toFixed(2)),
+      otherProfit: parseFloat(otherProfit.toFixed(2)),
+      marketProfitPercent: parseFloat(marketProfitPercent.toFixed(2)),
+      otherProfitPercent: parseFloat(otherProfitPercent.toFixed(2)),
       fxRate: fxRate ? fxRate.rate : null,
       chart: days,
     };
@@ -305,9 +345,7 @@ export class AnalyticsService {
         return false;
       }
 
-      // COMPLETED: check if tradeUnlockAt is still active
-      if (t.tradeUnlockAt && t.tradeUnlockAt.getTime() > now) return false;
-
+      // COMPLETED: All items are considered available right away
       return true;
     });
   }
@@ -334,8 +372,8 @@ export class AnalyticsService {
       // Skip matched trades (already sold)
       if (matchedBuyIds.has(t.id)) return false;
 
-      // Manual COMPLETED items are considered instantly tradable → not banned
-      if (t.platformSource === 'MANUAL' && t.status === 'COMPLETED') return false;
+      // COMPLETED items are considered instantly tradable -> not banned
+      if (t.status === 'COMPLETED') return false;
 
       // TRADE_HOLD status without tradeUnlockAt → show as banned (no date data)
       if (t.status === 'TRADE_HOLD' && !t.tradeUnlockAt) return true;

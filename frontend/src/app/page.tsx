@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   DollarSign,
   TrendingUp,
-  ArrowDownUp,
   RefreshCw,
   LogOut,
   BarChart3,
@@ -300,33 +299,38 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             icon={<DollarSign className="h-5 w-5" />}
           />
           <StatCard
-            title="Profit"
-            value={summary ? formatUSD(summary.totalProfit) : '—'}
+            title="Profit Market"
+            value={summary ? formatUSD(summary.marketProfit) : '—'}
             subtitle={
-              summary ? formatPercent(summary.profitPercent) : ''
+              summary
+                ? `${formatPercent(summary.marketProfitPercent)} · только Market.CSGO`
+                : ''
             }
             icon={<TrendingUp className="h-5 w-5" />}
             trend={
               summary
-                ? summary.totalProfit >= 0
+                ? summary.marketProfit >= 0
                   ? 'up'
                   : 'down'
                 : undefined
             }
           />
           <StatCard
-            title="Курс USDT→RUB"
-            value={
-              summary?.fxRate
-                ? `${summary.fxRate.rate.toFixed(2)} ₽`
-                : '—'
-            }
+            title="Profit Other"
+            value={summary ? formatUSD(summary.otherProfit) : '—'}
             subtitle={
-              summary?.fxRate
-                ? `Обновлён: ${new Date(summary.fxRate.fetchedAt).toLocaleTimeString('ru-RU')}`
+              summary
+                ? `${formatPercent(summary.otherProfitPercent)} · все площадки, кроме Market.CSGO`
                 : ''
             }
-            icon={<ArrowDownUp className="h-5 w-5" />}
+            icon={<DollarSign className="h-5 w-5" />}
+            trend={
+              summary
+                ? summary.otherProfit >= 0
+                  ? 'up'
+                  : 'down'
+                : undefined
+            }
           />
         </div>
 

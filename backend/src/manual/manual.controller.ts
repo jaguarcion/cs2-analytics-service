@@ -17,7 +17,10 @@ export class ManualController {
   }
 
   @Put('trades/:id')
-  async updateTrade(@Param('id') id: string, @Body() dto: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: string }) {
+  async updateTrade(
+    @Param('id') id: string,
+    @Body() dto: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: string; tradeBanDate?: string | null; status?: string },
+  ) {
     return this.manualService.updateTrade(id, dto);
   }
 

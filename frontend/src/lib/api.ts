@@ -35,6 +35,10 @@ export interface AnalyticsSummary {
   totalSales: number;
   salesCount: number;
   totalProfit: number;
+  marketProfit: number;
+  otherProfit: number;
+  marketProfitPercent: number;
+  otherProfitPercent: number;
   profitPercent: number;
   fxRate: { pair: string; rate: number; fetchedAt: string } | null;
 }
@@ -171,6 +175,10 @@ export interface DashboardStats {
   avgProfitPercent: number;
   matchedCount: number;
   totalProfit: number;
+  marketProfit: number;
+  otherProfit: number;
+  marketProfitPercent: number;
+  otherProfitPercent: number;
   fxRate: number | null;
   chart: { date: string; purchases: number; sales: number }[];
 }
@@ -241,7 +249,7 @@ export async function createManualSale(data: CreateManualSaleDto): Promise<any> 
   return res;
 }
 
-export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: 'MARKET' | 'OTHER' }): Promise<any> {
+export async function updateTrade(id: string, data: { price?: number; date?: string; customSource?: string; commission?: number; profitBucket?: 'MARKET' | 'OTHER'; tradeBanDate?: string | null; status?: string }): Promise<any> {
   const { data: res } = await api.put(`/manual/trades/${id}`, data);
   return res;
 }
@@ -267,6 +275,7 @@ export interface InSaleItem {
   itemName: string;
   wear: string | null;
   floatValue: number | null;
+  buyPrice: number | null;
   price: number;
   referencePrice: number | null;
   basePrice: number | null;
@@ -293,6 +302,7 @@ export interface MarketInSaleItem {
   itemName: string;
   wear: string | null;
   floatValue: number | null;
+  buyPrice: number | null;
   price: number;
   currency: string;
   createdAt: string;

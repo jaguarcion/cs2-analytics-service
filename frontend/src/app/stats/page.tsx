@@ -235,32 +235,36 @@ function StatsContent() {
                 </p>
               </div>
 
-              {/* Total Profit */}
+              {/* Profit Market */}
               <div className="rounded-xl border border-dark-700/50 bg-dark-800/50 p-5">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-dark-400">Профит за период</span>
-                  <div className={`rounded-lg p-2 ${stats.totalProfit >= 0 ? 'bg-accent-green/10' : 'bg-accent-red/10'}`}>
-                    <DollarSign className={`h-4 w-4 ${stats.totalProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`} />
+                  <span className="text-sm text-dark-400">Profit Market</span>
+                  <div className={`rounded-lg p-2 ${stats.marketProfit >= 0 ? 'bg-accent-green/10' : 'bg-accent-red/10'}`}>
+                    <DollarSign className={`h-4 w-4 ${stats.marketProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`} />
                   </div>
                 </div>
-                <p className={`mt-2 text-3xl font-bold ${stats.totalProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
-                  {formatUSD(stats.totalProfit)}
+                <p className={`mt-2 text-3xl font-bold ${stats.marketProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+                  {formatUSD(stats.marketProfit)}
                 </p>
-                <p className="mt-1 text-xs text-dark-500">чистая прибыль</p>
+                <p className="mt-1 text-xs text-dark-500">
+                  {`${formatPercent(stats.marketProfitPercent)} · только Market.CSGO`}
+                </p>
               </div>
 
-              {/* FX Rate */}
+              {/* Profit Other */}
               <div className="rounded-xl border border-dark-700/50 bg-dark-800/50 p-5">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-dark-400">Курс USDT→RUB</span>
-                  <div className="rounded-lg bg-purple-500/10 p-2">
-                    <BarChart3 className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm text-dark-400">Profit Other</span>
+                  <div className={`rounded-lg p-2 ${stats.otherProfit >= 0 ? 'bg-accent-green/10' : 'bg-accent-red/10'}`}>
+                    <DollarSign className={`h-4 w-4 ${stats.otherProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`} />
                   </div>
                 </div>
-                <p className="mt-2 text-3xl font-bold text-dark-50">
-                  {stats.fxRate ? `${stats.fxRate.toFixed(2)} ₽` : '—'}
+                <p className={`mt-2 text-3xl font-bold ${stats.otherProfit >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+                  {formatUSD(stats.otherProfit)}
                 </p>
-                <p className="mt-1 text-xs text-dark-500">с комиссией 3%</p>
+                <p className="mt-1 text-xs text-dark-500">
+                  {`${formatPercent(stats.otherProfitPercent)} · все площадки, кроме Market.CSGO`}
+                </p>
               </div>
             </div>
 

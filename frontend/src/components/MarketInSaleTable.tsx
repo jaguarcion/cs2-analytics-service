@@ -5,7 +5,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { MarketInSaleItem } from '@/lib/api';
 import { formatUSD } from '@/lib/utils';
 
-type SortKey = 'name' | 'price' | 'createdAt' | 'float';
+type SortKey = 'name' | 'buyPrice' | 'price' | 'createdAt' | 'float';
 type SortDir = 'asc' | 'desc';
 
 export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[] }) {
@@ -32,6 +32,8 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
                         : b.name.localeCompare(a.name);
                 case 'price':
                     va = a.price; vb = b.price; break;
+                case 'buyPrice':
+                    va = a.buyPrice ?? 0; vb = b.buyPrice ?? 0; break;
                 case 'createdAt':
                     va = new Date(a.createdAt).getTime();
                     vb = new Date(b.createdAt).getTime();
@@ -93,6 +95,11 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
                                 </button>
                             </th>
                             <th className="px-4 py-3 font-medium">
+                                <button onClick={() => toggleSort('buyPrice')} className="inline-flex items-center gap-1 hover:text-dark-200">
+                                    Цена покупки <SortIcon col="buyPrice" />
+                                </button>
+                            </th>
+                            <th className="px-4 py-3 font-medium">
                                 <button onClick={() => toggleSort('price')} className="inline-flex items-center gap-1 hover:text-dark-200">
                                     Цена <SortIcon col="price" />
                                 </button>
@@ -132,6 +139,9 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
                                 <td className="px-4 py-3 text-dark-300 font-mono text-xs">
                                     {item.floatValue != null ? item.floatValue.toFixed(10) : '—'}
                                 </td>
+                                <td className="px-4 py-3 font-medium text-dark-300">
+                                    {item.buyPrice != null ? formatUSD(item.buyPrice) : '—'}
+                                </td>
                                 {/* Price */}
                                 <td className="px-4 py-3 font-medium text-dark-100">
                                     {formatUSD(item.price)}
@@ -144,7 +154,7 @@ export default function MarketInSaleTable({ items }: { items: MarketInSaleItem[]
                         ))}
                         {sortedItems.length === 0 && (
                             <tr>
-                                <td colSpan={4} className="py-12 text-center text-dark-500">
+                                <td colSpan={5} className="py-12 text-center text-dark-500">
                                     Нет предметов в продаже на Market.CSGO
                                 </td>
                             </tr>

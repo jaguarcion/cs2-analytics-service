@@ -47,11 +47,12 @@ function getStatusLabel(status: string, type: 'BUY' | 'SELL', platform: string):
 
 function getTradeBanRemainingMs(trade: TradeItem): number {
   // Market.CSGO SELL COMPLETED: 8-day closing period
-  if (trade.platformSource === 'MARKET_CSGO' && trade.status === 'COMPLETED' && trade.tradedAt) {
+  if (trade.platformSource === 'MARKET_CSGO' && trade.type === 'SELL' && trade.status === 'COMPLETED' && trade.tradedAt) {
     const closeDate = new Date(new Date(trade.tradedAt).getTime() + 8 * 24 * 60 * 60 * 1000);
     const diff = closeDate.getTime() - Date.now();
     return diff > 0 ? diff : 0;
   }
+  if (trade.type === 'BUY' && trade.status === 'COMPLETED') return 0;
   if (!trade.tradeUnlockAt) return 0;
   const banEnd = new Date(trade.tradeUnlockAt).getTime();
   const diff = banEnd - Date.now();
@@ -59,8 +60,7 @@ function getTradeBanRemainingMs(trade: TradeItem): number {
 }
 
 function showTradeBan(trade: TradeItem): boolean {
-  // Manual items marked as COMPLETED are considered instantly tradable
-  if (trade.platformSource === 'MANUAL' && trade.status === 'COMPLETED') return false;
+  if (trade.type === 'BUY' && trade.status === 'COMPLETED') return false;
 
   if (trade.status === 'TRADE_HOLD') {
     // Status says trade hold — always show badge
